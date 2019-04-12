@@ -6,10 +6,26 @@
 #include <string.h>
 #include "list.h"
 
-enum type { NT, T, E };
+enum TT {
+    ENDOF,
+    ID,
+    PI,
+    PD,
+    MAS,
+    MENOS,
+    MUL,
+    DIV,
+    MOD,
+};
+
+enum ST {
+    NT,
+    T,
+    E,
+};
 
 struct sym {
-    enum type type;
+    enum ST type;
     char* name;
     uint8_t pos;
     struct list_head list;
@@ -27,7 +43,6 @@ struct grammar {
     struct prod* prods;
     uint8_t num_prods;
 };
-
 
 bool sym_equal(const struct sym* lhs, const struct sym* rhs)
 {

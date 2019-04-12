@@ -3,133 +3,170 @@
 #include <stdlib.h>
 #include <string.h>
 #include "grammar.h"
+#include "lex.yy.c"
 #include "list.h"
 
-struct grammar G = {
+enum TT token;
+extern FILE* yyin;
+
+const struct grammar G = {
     .syms =
-        (struct sym[7]){
-            {NT, "A", 0},
-            {NT, "B", 1},
-            {NT, "C", 2},
-            {T, "x", 0},
-            {T, "y", 1},
-            {T, "$", 2},
-            {E, "", 0},
+        (struct sym[13]){
+            {NT, "E", 0},     // 0
+            {NT, "F", 1},     // 1
+            {NT, "G", 2},     // 2
+            {T, "$", ENDOF},  // 3
+            {T, "id", ID},    // 4
+            {T, "(", PI},     // 5
+            {T, ")", PD},     // 6
+            {T, "+", MAS},    // 7
+            {T, "-", MENOS},  // 8
+            {T, "*", MUL},    // 9
+            {T, "/", DIV},    // 10
+            {T, "%", MOD},    // 11
+            {E, "", 0},       // 12
         },
     .num_syms = 7,
     .prods =
-        (struct prod[5]){
-            {0, "1/2", 2},
-            {1, "3", 1},
-            {1, "6", 0},
-            {2, "4", 1},
-            {1, "6", 0},
+        (struct prod[9]){
+            {0, "4/1", 2},      // 0
+            {0, "5/0/6/1", 4},  // 1
+            {1, "2/1", 2},      // 2
+            {1, "12", 0},       // 3
+            {2, "7/0", 2},      // 4
+            {2, "8/0", 2},      // 5
+            {2, "9/0", 2},      // 6
+            {2, "10/0", 2},     // 7
+            {2, "11/0", 2},     // 8
         },
-    .num_prods = 5,
+    .num_prods = 9,
 };
 
-int8_t M[][3] = {
-    {0, 0, 0},
-    {1, 2, 2},
-    {-1, 3, 4},
+const int8_t M[][9] = {
+    //$  id   (   )   +   -   *   /   %
+    {-1, 0, 1, -1, -1, -1, -1, -1, -1},  // E
+    {3, -1, -1, 3, 2, 2, 2, 2, 2},       // F
+    {-1, -1, -1, -1, 4, 5, 6, 7, 8},     // G
 };
 
 // Stack
-struct sym eof = {
-    .type = T,
-    .name = "$",
-    .pos = 2,
-    .list = LIST_HEAD_INIT(eof.list),
-};
-
 LIST_HEAD(stack);
 
-uint8_t token;
-
+void ASLL1();
 void error(const char* s);
 void accept();
 void print_stack();
-char* strrev(char* s);
 
-int8_t yylex()
+int main(int argc, const char* argv[])
 {
-    uint8_t input[] = {0, 1, 2};  // entrada = "xy$"
-    static uint8_t i = 0;
-    return input[i++];
+    FILE* f;
+    if (argc < 2) {
+        return -1;
+    }
+
+    f = fopen(argv[1], "r");
+
+    if (f == NULL) {
+        return -1;
+    }
+
+    yyin = f;
+
+    ASLL1();
+
+    fclose(f);
+    return 0;
 }
 
-int main(void)
+void ASLL1()
 {
-    int8_t prod_num;    // indice de la produccion en la gramatica
-    struct prod* prod;  // almacena una produccion
-    struct sym* top;    // almacena el resultado del ultimo pop() a la pila
+    int8_t prod_idx;           // indice de la produccion en la gramatica
+    struct prod* prod = NULL;  // almacena una produccion
+    struct sym* top = NULL;    // almacena el resultado del ultimo pop()
+    struct sym* const $ = &(G.syms[3]);              // sin de archivo
+    struct sym* const S = G.syms;                    // simbolo inicial
+    struct sym* entry = malloc(sizeof(struct sym));  // nuevo simbolo en la pila
+    struct list_head* cursor;  // axiliar para insertar en el orden adecuado
 
-    list_add(&(eof.list), &stack);        // push($)
-    list_add(&(G.syms[0].list), &stack);  // push(S)
+    list_add(&($->list), &stack);  // push($)
+    memcpy(entry, S, sizeof(struct sym));
+    list_add(&(entry->list), &stack);  // push(S)
 
-    token = yylex();  // deberia de ser el generador de tokens
+    token = yylex();  // primer token
 
-    printf("token: %d\n", token);
+    printf("Token: %s\n", yytext);
     print_stack();
     printf("\n");
 
     printf("Inicio algoritmo\n\n");
 
-    while (!sym_equal(top = list_first_entry(&stack, struct sym, list), &eof)) {
-        printf("cima: %s\n", top->name);
-        printf("token: %s\n", G.syms[3 + token].name);
+    while (!sym_equal(top = list_first_entry(&stack, struct sym, list), $)) {
+        printf("Token: %s\n", yytext);
         print_stack();
         printf("\n");
 
-        list_del(&(top->list));  // pop()
         if (top->type == NT) {
-            if ((prod_num = M[top->pos][token]) != -1) {
-                prod = &(G.prods[prod_num]);
-                char* body = strdup(prod->body);  // strok modifica la cadena :c
-                strrev(body);  // Debemos meter las producciones en orden
-                               // inverso a su aparicion
-                char* Y = strtok(body, "/");               // Y_k
-                for (int8_t k = prod->num; k >= 1; k--) {  // k = num ... 1
-                    prod_num = strtol(Y, NULL, 10);        // cadena a numero
-                    list_add(&(G.syms[prod_num].list), &stack);  // Push(Y_k)
-                    Y = strtok(NULL, "/");  // Y = Y_(k - 1)
+            if ((prod_idx = M[top->pos][token]) != -1) {
+                list_del(&(top->list));           // pop()
+                prod = &(G.prods[prod_idx]);      // M[S][token] = A -> Y_1 ...
+                char* body = strdup(prod->body);  // strdup aloja memoria
+                char* Y = strtok(body, "/");      // A -> Y_1 ... Y_k
+                cursor = &stack;
+                // Stack: X Y Z $
+                //       ^ cursor
+                for (int8_t i = 1; i <= prod->num; i++) {  // i = 1 ... k
+                    prod_idx = strtol(Y, NULL, 10);        // cadena a numero
+                    entry = malloc(sizeof(struct sym));
+                    memcpy(entry, (S + prod_idx), sizeof(struct sym));
+                    list_add(&(entry->list), cursor);  // push(Y_i)
+                    cursor = cursor->next;  // insertando detras de Y_i
+                    // Y_1 X Y Z $
+                    //    ^ cursor
+                    Y = strtok(NULL, "/");  // Y = Y_(i + 1)
                 }
+                // Y_1 ... Y_k X Y Z $
                 free(body);  // libera la memoria alojada por strdup
             } else {
-                printf("cima: %s\n", top->name);
-                printf("token: %s\n", G.syms[3 + token].name);
+                printf("Token: %s\n", yytext);
                 print_stack();
+                free(top);
                 error("1");
             }
         } else if (top->type == T) {
-            top = list_first_entry(&stack, struct sym, list);  // pop()
-            token = yylex();  // siguiente token
+            list_del(&(top->list));  // pop()
+            token = yylex();         // siguiente token
         } else {
-            printf("cima: %s\n", top->name);
-            printf("token: %s\n", G.syms[3 + token].name);
+            printf("Token: %s\n", yytext);
             print_stack();
+            free(top);
             error("2");
         }
+        free(top);
     }
 
-    if (token == eof.pos) {  // token == $
-        printf("cima: %s\n", top->name);
-        printf("token: %d\n", token);
+    if (token == ENDOF) {  // token == $
+        printf("Token: %s\n", yytext);
         print_stack();
         accept();
         printf("\n");
     } else {
-        printf("cima: %s\n", top->name);
-        printf("token: %d\n", token);
+        printf("Token: %s\n", yytext);
         print_stack();
         error("3");
     }
-
-    return 0;
 }
 
 void error(const char* s)
 {
+    struct sym *pos, *tmp;  // temporal para almacenar elementos de la pila
+    list_for_each_entry_safe(pos, tmp, &stack, list)
+    {
+        if (pos->type != T || pos->pos != ENDOF) {
+            list_del(&(pos->list));
+            free(pos);
+        }
+    }
+    fclose(yyin);
     printf("Error D; %s\n", s);
     exit(-1);
 }
@@ -141,28 +178,15 @@ void accept()
 
 void print_stack()
 {
+    int i = 0;
     printf("Stack: ");
     struct sym* entry;  // temporal para almacenar elementos de la pila
     list_for_each_entry(entry, &stack, list)  // despliega la pila
     {
+        i++;
         printf("%s ", entry->name);
+        if (i > 30)
+            break;
     }
     printf("\n");
-}
-
-char* strrev(char* s)  // reverse in-place
-{
-    if (!s || strlen(s) < 2)  // Es reversible?
-        return s;
-
-    char* head = s;
-    char* tail = s + strlen(s) - 1;
-    char temp;
-
-    do {
-        temp = *head;
-        *head = *tail;
-        *tail = temp;
-    } while (++head < --tail);
-    return s;
 }
