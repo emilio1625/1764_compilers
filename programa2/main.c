@@ -44,9 +44,9 @@ const struct grammar G = {
 
 const int8_t M[][9] = {
     //$  id   (   )   +   -   *   /   %
-    {-1, 0, 1, -1, -1, -1, -1, -1, -1},  // E
-    {3, -1, -1, 3, 2, 2, 2, 2, 2},       // F
-    {-1, -1, -1, -1, 4, 5, 6, 7, 8},     // G
+    {-1,  0,  1, -1, -1, -1, -1, -1, -1},  // E
+    { 3, -1, -1,  3,  2,  2,  2,  2,  2},  // F
+    {-1, -1, -1, -1,  4,  5,  6,  7,  8},  // G
 };
 
 // Stack
@@ -104,6 +104,7 @@ void ASLL1()
         printf("Token: %s\n", yytext);
         print_stack();
         printf("\n");
+        struct list_head * s = stack.next;
 
         if (top->type == NT) {
             if ((prod_idx = M[top->pos][token]) != -1) {

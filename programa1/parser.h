@@ -1,12 +1,17 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#define MAS 1
-#define MUL 2
-#define PD 3
-#define PI 4
-#define ID 5
-
+enum TT {
+    EOF,
+    ID,
+    PI,
+    PD,
+    MAS,
+    MENOS,
+    MUL,
+    DIV,
+    MOD,
+};
 
 void E();
 void Ep();
@@ -17,4 +22,3 @@ void error();
 void init();
 
 #endif /* end of PARSER_H */
-
