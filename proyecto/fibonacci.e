@@ -1,3 +1,6 @@
+entero a, b, c;
+!* a = 20; *?
+
 funcion entero fib_r(entero n)
 {
     si (n < 2) {
@@ -9,11 +12,12 @@ funcion entero fib_r(entero n)
 
 funcion entero fib_i(entero n)
 {
-    entero a = 0, b = 1, c;
+    entero a, b, c, k;
+    a = 0; b = 1;
     si (n < 2) {
         devolver n;
     } sino {
-        desde (entero k = 0; k = n; k = k + 1) {
+        desde (k = 0;; k <= n; k = k + 1;) {
             c = b + a;
             a = b;
             b = c;
@@ -23,12 +27,12 @@ funcion entero fib_i(entero n)
 }
 
 
-entero main(nada) {
+funcion entero main() {
     entero n;
-    imprimir("Sucesion de Fibonacci");
+    imprimir "Sucesion de Fibonacci";
     mientras (n < 10) {
-        !* imprimir(fib_r(n)); [o] í é *?
-        imprimir (fib_i(n));
+        !* imprimir fib_r(n); [o] í é *?
+        imprimir fib_i(n);
     }
     devolver 0;
 }

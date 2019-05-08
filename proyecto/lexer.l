@@ -1,66 +1,7 @@
 %{
 #include <stdio.h>
 
-enum TOKEN {
-    /* Palabras reservadas */
-    INT = 1,
-    FLOAT,
-    DOUBLE,
-    CHAR,
-    VOID,
-    STRUCT,
-
-    IF,
-    ELSE,
-    WHILE,
-    DO,
-    FOR,
-    SWITCH,
-    BREAK,
-    CASE,
-    DEFAULT,
-
-    FUNCT,
-    RETURN,
-
-    TRUE,
-    FALSE,
-
-    PYC,
-    /* Numeros */
-    NUMERO,
-    /* Operadores unarios */
-    NOT,
-    /* Operadores binarios */
-    CI,
-    CD,
-    PTO,
-    MUL,
-    DIV,
-    MOD,
-    MAS,
-    MEN,
-    LT,
-    LE,
-    GT,
-    GE,
-    EQ,
-    NEQ,
-    OR,
-    AND,
-    ASIG,
-    COMA,
-    /* Otros */
-    PI,
-    PD,
-    LI,
-    LD,
-    /* Caracteres y cadenas */
-    CCHAR,
-    STR,
-    /* Identificadores */
-    ID,
-};
+#include "y.tab.h"
 %}
 
 %option noyywrap
@@ -74,7 +15,7 @@ entero [1-9]{digito}*|0
 decimal {entero}\.{digito}*|entero?\.digito+
 exponente [Ee][+-]?digito+
 real {decimal}{exponente}?|{entero}{exponente}
-numero {entero}|{real}
+flotante {entero}f|{real}
 
 ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
 
@@ -86,38 +27,56 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
 <COMMENT>"*"/[^?]   {}
 <COMMENT>"*?"       {BEGIN 0        ;}
     /* Palabras reservadas */
+    /* Tipos de dato */
 "entero"    {return INT     ;}
 "real"      {return FLOAT   ;}
 "doble"     {return DOUBLE  ;}
 "letra"     {return CHAR    ;}
 "nada"      {return VOID    ;}
 "estruc"    {return STRUCT  ;}
+    /* Control de flujo */
 "si"        {return IF      ;}
 "sino"      {return ELSE    ;}
 "mientras"  {return WHILE   ;}
 "repetir"   {return DO      ;}
 "desde"     {return FOR     ;}
 "elegir"    {return SWITCH  ;}
-"parar"     {return BREAK   ;}
-"funcion"   {return FUNCT   ;}
-"devolver"  {return RETURN  ;}
 "opcion"    {return CASE    ;}
 "otro"      {return DEFAULT ;}
+"parar"     {return BREAK   ;}
+    /* Funciones */
+"funcion"   {return FUNCT   ;}
+"devolver"  {return RETURN  ;}
+"imprimir"  {return PRINT   ;}
+    /* Constantes */
+        /* Boleanas */
 "cierto"    {return TRUE    ;}
 "falso"     {return FALSE   ;}
+        /* Caracteres y cadenas */
+\'{ascii}?\' {return CCHAR   ;}
+\"{ascii}*\" {return STR    ;}
+":"         {return DP      ;}
 ";"         {return PYC     ;}
-"("         {return PI      ;}
-")"         {return PD      ;}
 "{"         {return LI      ;}
 "}"         {return LD      ;}
-    /* Numeros */
-{numero} {return NUMERO;}
-    /* Operadores unarios */
-"no"    {return NOT ;}
-    /* Operadores binarios */
+        /* Numeros */
+{entero} {
+    yylval.num.tipo = INT;
+    strcpy(yylval.num.val, yytext);
+    return NUMERO;
+}
+{flotante} {
+    yylval.num.tipo = FLOAT;
+    strcpy(yylval.num.val, yytext);
+    return NUMERO;
+}
+    /* Operadores */
+"("     {return PI  ;}
+")"     {return PD  ;}
 "["     {return CI  ;}
 "]"     {return CD  ;}
 "."     {return PTO ;}
+"no"    {return NOT ;}
 "*"     {return MUL ;}
 "/"     {return DIV ;}
 "%"     {return MOD ;}
@@ -129,23 +88,21 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
 ">="    {return GE  ;}
 "=="    {return EQ  ;}
 "!="    {return NEQ ;}
-"o"     {return OR  ;}
 "y"     {return AND ;}
+"o"     {return OR  ;}
 "="     {return ASIG;}
 ","     {return COMA;}
-    /* Caracteres y cadenas */
-\'{ascii}?\' {return CCHAR   ;}
-\"{ascii}*\" {return STR    ;}
     /* Identificadores */
-{id} {return ID;}
+{id} { strcpy(yylval.id, yytext); return ID;}
     /* Espacios en blanco */
 [ \t\n]+ {}
 . {printf("Error lexico en la linea %d\n", yylineno);}
+
 %%
 
+extern int yyparse();
 int main(int argc, const char* argv[])
 {
-    enum TOKEN token;
     FILE* f;
     if (argc < 2) {
         return -1;
@@ -159,9 +116,10 @@ int main(int argc, const char* argv[])
 
     yyin = f;
 
-    while ((token = yylex()) != 0) {
-        printf("Token: %s, %d\n", yytext, token);
-    }
+    /* while ((token = yylex()) != 0) { */
+        /* printf("Token: %s, %d\n", yytext, token); */
+    /* } */
+    yyparse();
 
     fclose(f);
     return 0;
