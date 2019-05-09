@@ -1,0 +1,8 @@
+proyecto/src/parser.c
+proyecto/include/parser.h
+proyecto/src/lexer.c
+proyecto/include/lexer.h
+proyecto/src/parser.dot
+proyecto/parser.png
+proyecto/compilador
+

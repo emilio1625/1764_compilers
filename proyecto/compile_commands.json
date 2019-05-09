@@ -1,0 +1,80 @@
+[
+    {
+        "arguments": [
+            "gcc",
+            "-c",
+            "-Wall",
+            "-Wextra",
+            "-g3",
+            "-I./include",
+            "src/parser.c"
+        ],
+        "directory": "/home/emilio1625/Documentos/vcs/1764_compilers/proyecto",
+        "file": "src/parser.c"
+    },
+    {
+        "arguments": [
+            "/usr/bin/gcc",
+            "-c",
+            "-Wall",
+            "-Wextra",
+            "-g3",
+            "-I./include",
+            "src/lexer.c"
+        ],
+        "directory": "/home/emilio1625/Documentos/vcs/1764_compilers/proyecto",
+        "file": "src/lexer.c"
+    },
+    {
+        "arguments": [
+            "/usr/bin/gcc",
+            "-c",
+            "-Wall",
+            "-Wextra",
+            "-g3",
+            "-I./include",
+            "src/main.c"
+        ],
+        "directory": "/home/emilio1625/Documentos/vcs/1764_compilers/proyecto",
+        "file": "src/main.c"
+    },
+    {
+        "arguments": [
+            "gcc",
+            "-c",
+            "-Wall",
+            "-Wextra",
+            "-g3",
+            "-I./include",
+            "src/lexer.c"
+        ],
+        "directory": "/home/emilio1625/Documentos/vcs/1764_compilers/proyecto",
+        "file": "src/lexer.c"
+    },
+    {
+        "arguments": [
+            "/usr/bin/gcc",
+            "-c",
+            "-Wall",
+            "-Wextra",
+            "-g3",
+            "-I./include",
+            "src/parser.c"
+        ],
+        "directory": "/home/emilio1625/Documentos/vcs/1764_compilers/proyecto",
+        "file": "src/parser.c"
+    },
+    {
+        "arguments": [
+            "gcc",
+            "-c",
+            "-Wall",
+            "-Wextra",
+            "-g3",
+            "-I./include",
+            "src/main.c"
+        ],
+        "directory": "/home/emilio1625/Documentos/vcs/1764_compilers/proyecto",
+        "file": "src/main.c"
+    }
+]
