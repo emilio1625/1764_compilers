@@ -1,12 +1,15 @@
 /* Seccion de declaraciones */
 
 %{
+
 #include <stdio.h>
 #include <string.h>
+#include "list.h"
 void yyerror(char * str);
 char g_tipo[5];
 extern int yylineno;
 extern char* yytext;
+
 %}
 
 %union {
