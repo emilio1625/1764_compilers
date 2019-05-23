@@ -65,8 +65,7 @@ extern char* yytext;
 
 %%
 
-programa        : declaraciones funciones
-                ;
+programa        : declaraciones funciones;
 
 declaraciones   : declaraciones tipo {strcpy(g_tipo, $2);} lista PYC
                 | ;
@@ -76,12 +75,10 @@ tipo            : INT {strcpy($$, "int");}
                 | DOUBLE {strcpy($$, "doubl");}
                 | CHAR {strcpy($$, "char");}
                 | VOID {strcpy($$, "void");}
-                | STRUCT LI declaraciones LD {strcpy($$, "struc");}
-                ;
+                | STRUCT LI declaraciones LD {strcpy($$, "struc");};
 
 lista           : lista COMA ID {printf("El tipo de %s es %s\n", $3, g_tipo);} arreglo
-                | ID {printf("El tipo de %s es %s\n", $1, g_tipo);} arreglo
-                ;
+                | ID {printf("El tipo de %s es %s\n", $1, g_tipo);} arreglo;
 
 arreglo         : CI NUMERO CD arreglo
                 | ;
@@ -93,15 +90,13 @@ argumentos      : lista_argumentos
                 | ;
 
 lista_argumentos: lista_argumentos COMA tipo ID parte_arreglo
-                | tipo ID parte_arreglo
-                ;
+                | tipo ID parte_arreglo;
 
 parte_arreglo   : CI CD parte_arreglo
                 | ;
 
 sentencias      : sentencias sentencia
-                | sentencia
-                ;
+                | sentencia;
 
 sentencia       : IF PI condicion PD sentencia
                 | IF PI condicion PD sentencia ELSE sentencia
@@ -114,14 +109,12 @@ sentencia       : IF PI condicion PD sentencia
                 | parte_izquierda ASIG expresion PYC
                 | RETURN expresion PYC
                 | RETURN PYC
-                | PRINT expresion PYC
-                ;
+                | PRINT expresion PYC;
 
 casos           : CASE DP NUMERO sentencia predeterminado
                 | ;
 
-predeterminado  : DEFAULT DP sentencia
-                ;
+predeterminado  : DEFAULT DP sentencia;
 
 parte_izquierda : ID
                 | var_arreglo
@@ -129,8 +122,7 @@ parte_izquierda : ID
                 | ;
 
 var_arreglo     : ID CI expresion CD
-                | var_arreglo CI expresion CD
-                ;
+                | var_arreglo CI expresion CD;
 
 expresion       : expresion MAS expresion
                 | expresion MEN expresion
@@ -142,15 +134,13 @@ expresion       : expresion MAS expresion
                 | CCHAR
                 | STR
                 | ID
-                | ID PI parametros PD
-                ;
+                | ID PI parametros PD;
 
 parametros      : lista_param
                 | ;
 
 lista_param     : lista_param COMA expresion
-                | expresion
-                ;
+                | expresion;
 
 condicion       : condicion OR condicion
                 | condicion AND condicion
@@ -158,16 +148,14 @@ condicion       : condicion OR condicion
                 | PI condicion PD
                 | expresion relacional expresion
                 | TRUE
-                | FALSE
-                ;
+                | FALSE;
 
 relacional      : LT
                 | LE
                 | GT
                 | GE
                 | EQ
-                | NEQ
-                ;
+                | NEQ;
 %%
 
 void yyerror(char * str) {
