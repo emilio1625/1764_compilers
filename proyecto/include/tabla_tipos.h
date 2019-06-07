@@ -44,9 +44,9 @@ struct list_head *tt_crear_tabla();
 
 /**
  * tt_eliminar_tabla - libera la memoria ocupada por una tabla de memoria
- * @tt - la tabla a eliminar
+ * @tt - apuntador a la tabla a eliminar
  */
-void tt_eliminar_tabla(struct list_head *tt);
+void tt_eliminar_tabla(struct list_head **tt);
 
 /**
  * tt_insertar_tipo - aloja memoria y añade un nuevo tipo a la tabla de tipos

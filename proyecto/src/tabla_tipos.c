@@ -10,26 +10,25 @@ struct list_head *tt_crear_tabla()
     for (u8 i = 0; i < 4; i++) {
         if (!tt_insertar_tipo(tt, i, NULL, (i < 2) ? i : 4, 0)) {
             tt_eliminar_tabla(tt);
-            break;
         }
     }
     return tt;
 }
 
-void tt_eliminar_tabla(struct list_head *tt)
+void tt_eliminar_tabla(struct list_head **tt)
 {
-    if (tt == NULL)
+    if (*tt == NULL)
         return;
     struct tipo *tipo, *sig;
-    if (!list_empty(tt)) {
-        list_for_each_entry_safe(tipo, sig, tt, list)
+    if (!list_empty(*tt)) {
+        list_for_each_entry_safe(tipo, sig, *tt, list)
         {
             list_del(&tipo->list);
             free(tipo);
         }
     }
-    free(tt);
-    tt = NULL;
+    free(*tt);
+    *tt = NULL;
 }
 
 struct tipo *tt_insertar_tipo(struct list_head *tt,
@@ -48,7 +47,7 @@ struct tipo *tt_insertar_tipo(struct list_head *tt,
     nuevo->tipo = tipo;
     nuevo->base = base;
     nuevo->dim = dim;
-    nuevo->tam = dim > 0 ? dim * base->tam : tam;
+    nuevo->tam = dim > 0 ? dim * (base == NULL? 1 : base->tam) : tam;
     list_add(&nuevo->list, tt);
     return nuevo;
 }

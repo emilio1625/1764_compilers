@@ -6,13 +6,13 @@
 #include "tabla_tipos.h"
 
 /**
- * ST - Tipos de variables de un simbolo
+ * TS - Tipos de variables de un simbolo
  * En nuestro lenguaje un simbolo puede ser una variable, funcion o parametro
  */
-enum ST {
-    ST_VAR,
-    ST_FUN,
-    ST_PARAM,
+enum TS {
+    TS_VAR,
+    TS_FUN,
+    TS_PARAM,
 };
 
 /**
@@ -31,7 +31,7 @@ struct simbolo {
     u16 pos;
     char *id;
     struct tipo *tipo;
-    enum ST tipo_var;
+    enum TS tipo_var;
     u16 dir;
     u8 *argv;
     u8 argc;
@@ -51,7 +51,7 @@ struct simbolo {
 struct simbolo *ts_insertar_simbolo(struct list_head *ts,
                                     char *id,
                                     struct tipo *tipo,
-                                    enum ST tipo_var,
+                                    enum TS tipo_var,
                                     u16 dir,
                                     u8 *argv,
                                     u8 argc);
@@ -80,9 +80,9 @@ struct list_head *ts_crear_tabla();
 
 /**
  * ts_eliminar_tabla - elimina de memoria toda una tabla de simbolos
- * @ts: la tabla a eliminar
+ * @ts: apuntador a la tabla a eliminar
  */
-void ts_eliminar_tabla(struct list_head *ts);
+void ts_eliminar_tabla(struct list_head **ts);
 
 /**
  * ts_imprimir_simbolo - imprime un simbolo a la consola

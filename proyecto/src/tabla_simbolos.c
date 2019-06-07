@@ -6,7 +6,7 @@
 struct simbolo *ts_insertar_simbolo(struct list_head *ts,
                                     char *id,
                                     struct tipo *tipo,
-                                    enum ST tipo_var,
+                                    enum TS tipo_var,
                                     u16 dir,
                                     u8 *argv,
                                     u8 argc)
@@ -48,13 +48,13 @@ struct list_head *ts_crear_tabla()
     return list_new();
 }
 
-void ts_eliminar_tabla(struct list_head *ts)
+void ts_eliminar_tabla(struct list_head **ts)
 {
-    if (ts == NULL)
+    if (*ts == NULL)
         return;
     struct simbolo *tmp, *sig;
-    if (!list_empty(ts)) {
-        list_for_each_entry_safe(tmp, sig, ts, list)
+    if (!list_empty(*ts)) {
+        list_for_each_entry_safe(tmp, sig, *ts, list)
         {
             list_del(&tmp->list);
             free(tmp->id);
@@ -62,8 +62,8 @@ void ts_eliminar_tabla(struct list_head *ts)
             free(tmp);
         }
     }
-    free(ts);
-    ts = NULL;
+    free(*ts);
+    *ts = NULL;
 }
 
 void ts_imprimir_simbolo(struct simbolo *sim)
