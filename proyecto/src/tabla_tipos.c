@@ -9,7 +9,7 @@ struct list_head *tt_crear_tabla()
         return NULL;
     for (u8 i = 0; i < 4; i++) {
         if (!tt_insertar_tipo(tt, i, NULL, (i < 2) ? i : 4, 0)) {
-            tt_eliminar_tabla(tt);
+            tt_eliminar_tabla(&tt);
         }
     }
     return tt;
