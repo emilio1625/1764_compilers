@@ -9,13 +9,14 @@
 #include "codigo_intermedio.h"
 #include "tools.h"
 
-u16 dir_actual, dir_previa;
+u16 dir_actual, dir_previa, tmp;
 struct tipo *tipo_g;
-struct list_head *tt_stack, *ts_stack, *dir_stack, *code_list, *tt_actual, *ts_actual;
+struct list_head *tt_stack, *ts_stack, *dir_stack, *code_list, *tt_actual,
+    *ts_actual;
 
 void init();
 void destroy();
-void yyerror(char * str);
+void yyerror(char *str);
 
 extern int yylineno;
 extern char* yytext;
@@ -30,7 +31,25 @@ extern char* yytext;
             float f;
         } val;
     } num;
+    // apunta a alguna entrada en la tabla de tipos
     struct tipo *tipo;
+    struct {
+        enum TT tipo;
+        // stack de direcciones siguientes
+        struct list_head *next;
+    } sent;
+    struct {
+        // Almacena si es cierta (1) o falsa (0)
+        u8 val;
+        // Almacena un stack de direcciones que almacena el numero de las
+        // instrucciones que deben de incluir la etiqueta verdadra o falsa
+        struct list_head * true, *false;
+    } cond;
+    struct {
+        enum TT tipo;
+        size_t tam;
+        u16 dir;
+    } expr;
     char str32[32];
 }
 
@@ -70,6 +89,10 @@ extern char* yytext;
 %token<str32> ID
 
 %type<tipo> tipo lista arreglo
+%type<sent> sentencias sentencia
+%type<expr> expresion
+%type<cond> condicion
+%type<str32> relacional
 
 %start programa
 
@@ -81,6 +104,8 @@ programa        : {
                     init();
                 } declaraciones funciones {
                     // TODO: limpiar el desmadre
+                    stack_imprimir(ts_stack, ts_imprimir_tabla);
+                    stack_imprimir(tt_stack, tt_imprimir_tabla);
                     destroy();
                 };
 
@@ -138,7 +163,14 @@ arreglo         : CI NUMERO CD arreglo {
                 }
                 | {$$ = tipo_g;};
 
-funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias LD funciones
+funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias {
+                    if ($9.tipo != $2->tipo) {
+                        yyerror("El tipo no coincide");
+                    }
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($9.next, tmp);
+                    code_backpatch(code_list, $9.next, etiqueta_crear());
+                } LD funciones
                 | ;
 
 argumentos      : lista_argumentos
@@ -150,22 +182,60 @@ lista_argumentos: lista_argumentos COMA tipo ID parte_arreglo
 parte_arreglo   : CI CD parte_arreglo
                 | ;
 
-sentencias      : sentencias sentencia
-                | sentencia;
+sentencias      : sentencias {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($1.next, tmp);
+                } sentencia {
+                    code_backpatch(code_list, $1.next, etiqueta_crear());
+                    $$ = $3;
+                }
+                | sentencia {$$ = $1;};
 
-sentencia       : IF PI condicion PD sentencia
-                | IF PI condicion PD sentencia ELSE sentencia
-                | WHILE PI condicion PD sentencia
-                | DO sentencia WHILE PI condicion PD PYC
-                | FOR PI sentencia condicion PYC sentencia PD sentencia
-                | SWITCH PI expresion PD LI casos predeterminado LD
-                | BREAK PYC
-                | LI sentencias LD
-                | parte_izquierda ASIG expresion PYC
-                | RETURN expresion PYC
-                | RETURN PYC
-                | PRINT expresion PYC
-                | expresion PYC;
+sentencia       : IF PI condicion PD {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($3.true, tmp);
+                } sentencia {
+                    tmp = code_push(code_list, "goto", "", "", "__");
+                    $<sent>$.next = list_new();
+                    dir_push($<sent>$.next, tmp);
+                } ELSE {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($3.false, tmp);
+                } sentencia {
+                    code_backpatch(code_list, $3.true, etiqueta_crear());
+                    code_backpatch(code_list, $3.false, etiqueta_crear());
+                    $$.next = combinar($6.next, combinar($<sent>7.next, $10.next));
+                }
+                | WHILE PI {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    $<sent>$.next = list_new();
+                    dir_push($<sent>$.next, tmp);
+                } condicion PD {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($4.true, tmp);
+                }
+                sentencia {
+                    char *et = etiqueta_crear();
+                    $7.next = combinar($7.next, $<siglista>3.next);
+                    code_backpatch(code_list, $7.next, et);
+                    code_backpatch(code_list, $4.true, etiqueta_crear());
+                    code_push(code_list, "goto", "", "", et);
+                    $$.next = $4.false;
+                }
+                | DO sentencia WHILE PI condicion PD PYC {}
+                | FOR PI sentencia condicion PYC sentencia PD sentencia {}
+                | SWITCH PI expresion PD LI casos predeterminado LD {}
+                | BREAK PYC {}
+                | LI sentencias LD {}
+                | parte_izquierda ASIG expresion PYC {
+                    // TODO: Comprobar tipos
+                    code_push(code_list, "=", $3.dir, "", "");
+                    $$.next = list_new();
+                }
+                | RETURN expresion PYC {}
+                | RETURN PYC {}
+                | PRINT expresion PYC {}
+                | expresion PYC {};
 
 casos           : CASE NUMERO DP sentencia casos
                 | ;
@@ -181,17 +251,17 @@ parte_izquierda : ID
 var_arreglo     : ID CI expresion CD
                 | var_arreglo CI expresion CD;
 
-expresion       : expresion MAS expresion
-                | expresion MEN expresion
-                | expresion MUL expresion
-                | expresion DIV expresion
-                | expresion MOD expresion
-                | var_arreglo
-                | NUMERO
-                | CCHAR
-                | STR
-                | ID
-                | ID PI parametros PD;
+expresion       : expresion MAS expresion {}
+                | expresion MEN expresion {}
+                | expresion MUL expresion {}
+                | expresion DIV expresion {}
+                | expresion MOD expresion {}
+                | var_arreglo {}
+                | NUMERO {}
+                | CCHAR {}
+                | STR {}
+                | ID {}
+                | ID PI parametros PD {};
 
 parametros      : lista_param
                 | ;
@@ -199,20 +269,49 @@ parametros      : lista_param
 lista_param     : lista_param COMA expresion
                 | expresion;
 
-condicion       : condicion OR condicion
-                | condicion AND condicion
-                | NOT condicion
-                | PI condicion PD
-                | expresion relacional expresion
-                | TRUE
-                | FALSE;
+condicion       : condicion OR {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($1.false, etiqueta_crear());
+                } condicion {
+                    code_backpatch(code_list, $1.false, etiqueta_crear());
+                    $$.true = combinar($1.true, $4.true);
+                    $$.false = $4.false;
+                }
+                | condicion AND {
+                    tmp = code_push(code_list, "label", "", "", "__");
+                    dir_push($1.true, etiqueta_crear());
+                } condicion {
+                    code_backpatch(code_list, $1.true, etiqueta_crear());
+                    $$.false = combinar($1.false, $4.false);
+                    $$.true = $4.true;
+                }
+                | NOT condicion {
+                    $$.true = $2.false;
+                    $$.false = $2.true;
+                }
+                | PI condicion PD {$$ = $2;}
+                | TRUE {
+                    tmp = code_push("goto", "", "", "__");
+                    $$.true = list_new();
+                    dir_push($$.true, tmp);
+                }
+                | FALSE {
+                    tmp = code_push("goto", "", "", "__");
+                    $$.false = list_new();
+                    dir_push($$.false, tmp);
+                }
+                | expresion relacional expresion {
+                    char *temp = temporal_nueva();
+                    code_push(code_list, $2, $3.dir, temp);
+                };
 
-relacional      : LT
-                | LE
-                | GT
-                | GE
-                | EQ
-                | NEQ;
+
+relacional      : LT {}
+                | LE {}
+                | GT {}
+                | GE {}
+                | EQ {}
+                | NEQ {};
 %%
 
 void yyerror(char * str) {

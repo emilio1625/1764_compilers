@@ -20,6 +20,8 @@ int main(int argc, const char* argv[])
 
     yyin = f;
 
+    srand(getpid());
+
     /* while ((token = yylex()) != 0) { */
         /* printf("Token: %s, %d\n", yytext, token); */
     /* } */
