@@ -43,6 +43,20 @@ struct simbolo *ts_buscar_id(struct list_head *ts, const char *id)
     return NULL;
 }
 
+struct simbolo *ts_buscar_pos(struct list_head *ts, u16 pos)
+{
+    struct simbolo *res = NULL;
+    if (ts == NULL || list_empty(ts))
+        return NULL;
+    list_for_each_entry(res, ts, list)
+    {
+        if (res->pos == pos) {
+            return res;
+        }
+    }
+    return NULL;
+}
+
 struct list_head *ts_crear_tabla()
 {
     return list_new();

@@ -70,7 +70,7 @@ struct simbolo *ts_buscar_id(struct list_head *ts, const char *id);
  * @pos: posicion en la tabla de simbolos
  * @return: simbolo encontrado o NULL si la busqueda fallo
  */
-struct simbolo *ts_buscar_pos(struct list_head *ts, const char *id);
+struct simbolo *ts_buscar_pos(struct list_head *ts, u16 pos);
 
 /**
  * ts_crear_tabla - aloja memoria para una nueva tabla de simbolos vacia
