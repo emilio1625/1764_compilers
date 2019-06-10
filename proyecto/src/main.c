@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include "lexer.h"
+#include "tabla_tipos.h"
 #include "parser.h"
+#include "lexer.h"
 
 extern int yyparse();
 

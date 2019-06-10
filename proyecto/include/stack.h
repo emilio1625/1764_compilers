@@ -20,8 +20,8 @@ struct list_head *stack_crear();
  * @eliminar_elemento: una funcion para eliminar de memoria el elemento
  *  almacenado en el stack
  */
-void stack_eliminar(struct list_head *stack,
-                    void (*eliminar_elemento)(struct list_head *));
+void stack_eliminar(struct list_head **stack,
+                    void (*eliminar_elemento)(struct list_head **));
 
 /**
  * stack_push - añade un elemento al stack

@@ -6,12 +6,18 @@
 #include <string.h>
 #include "list.h"
 #include "tabla_tipos.h"
+#include "tools.h"
 
-void yyerror(char * str);
 char g_tipo[5];
+u16 dir_actual;
+struct list_head *tt_stack, *ts_stack, *dir_stack, *code_list, *tt_actual, *ts_actual;
+
+void init();
+void destroy();
+void yyerror(char * str);
+
 extern int yylineno;
 extern char* yytext;
-
 %}
 
 %union {
@@ -67,7 +73,12 @@ extern char* yytext;
 
 %%
 
-programa        : declaraciones funciones;
+programa        : {
+                    init();
+                } declaraciones funciones {
+                    // TODO: limpiar el desmadre
+                    destroy();
+                };
 
 declaraciones   : tipo lista PYC declaraciones
                 | ;
@@ -85,7 +96,7 @@ lista           : lista COMA ID arreglo
 arreglo         : CI NUMERO CD arreglo
                 | ;
 
-funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencia LD funciones
+funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias LD funciones
                 | ;
 
 argumentos      : lista_argumentos
@@ -97,22 +108,25 @@ lista_argumentos: lista_argumentos COMA tipo ID parte_arreglo
 parte_arreglo   : CI CD parte_arreglo
                 | ;
 
-sentencia       : sentencia sentencia
-                | IF PI condicion PD sentencia
+sentencias      : sentencias sentencia
+                | sentencia;
+
+sentencia       : IF PI condicion PD sentencia
                 | IF PI condicion PD sentencia ELSE sentencia
                 | WHILE PI condicion PD sentencia
                 | DO sentencia WHILE PI condicion PD PYC
-                | FOR PI sentencia PYC condicion PYC sentencia PD sentencia
+                | FOR PI sentencia condicion PYC sentencia PD sentencia
                 | SWITCH PI expresion PD LI casos predeterminado LD
                 | BREAK PYC
-                | LI sentencia LD
+                | LI sentencias LD
                 | parte_izquierda ASIG expresion PYC
                 | RETURN expresion PYC
                 | RETURN PYC
                 | PRINT expresion PYC
                 | expresion PYC;
 
-casos           : CASE NUMERO DP sentencia casos | CASE NUMERO DP sentencia;
+casos           : CASE NUMERO DP sentencia casos
+                | ;
 
 predeterminado  : DEFAULT DP sentencia
                 | ;
@@ -161,4 +175,38 @@ relacional      : LT
 
 void yyerror(char * str) {
     printf("Error: %s en la linea %d, %s\n", str, yylineno, yytext);
+}
+
+void init()
+{
+    /* Creando el stack de tablas de tipos */
+    tt_stack = stack_crear();
+    /* Creando el stack de tablas de simbolos */
+    ts_stack = stack_crear();
+    /* Creando el stack de direcciones */
+    dir_stack = list_new();
+    /* Creando la lista de codigo */
+    code_list = list_new();
+
+    if (!tt_stack || !ts_stack || !dir_stack || !code_list) {
+        printf("Error creando las estructuras de dato\n");
+        exit (-1);
+    }
+    ambito_crear(tt_stack, &tt_actual, ts_stack, &ts_actual, dir_stack,
+                 &dir_actual);
+    /* tt_global = tt_actual; */
+    /* ts_global = ts_actual; */
+
+
+    printf("Estructuras de datos inicializadas\n");
+
+    stack_imprimir(tt_stack, tt_imprimir_tabla);
+    stack_imprimir(ts_stack, ts_imprimir_tabla);
+}
+
+void destroy () {
+    stack_eliminar(&tt_stack, tt_eliminar_tabla);
+    stack_eliminar(&ts_stack, ts_eliminar_tabla);
+    dir_eliminar(&dir_stack);
+    code_eliminar(&code_list);
 }

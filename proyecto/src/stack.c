@@ -6,20 +6,20 @@ struct list_head *stack_crear()
     return list_new();
 }
 
-void stack_eliminar(struct list_head *stack,
-                    void (*eliminar_elemento)(struct list_head *))
+void stack_eliminar(struct list_head **stack,
+                    void (*eliminar_elemento)(struct list_head **))
 {
-    if (stack == NULL || list_empty(stack))
+    if (stack == NULL || list_empty(*stack))
         return;
     struct list_head *tmp, *sig;
-    list_for_each_safe(tmp, sig, stack)
+    list_for_each_safe(tmp, sig, *stack)
     {
         list_del(tmp);
-        eliminar_elemento(tmp->entry);
+        eliminar_elemento(&tmp->entry);
         free(tmp);
     }
-    free(stack);
-    stack = NULL;
+    free(*stack);
+    *stack = NULL;
 }
 
 void stack_push(struct list_head *stack, struct list_head *head)

@@ -65,6 +65,23 @@ u16 dir_peek(struct list_head *stack)
     return dir;
 }
 
+void dir_eliminar(struct list_head **stack)
+{
+    if (stack == NULL || *stack == NULL)
+        return;
+    struct dir *dir, *sig;
+    if (!list_empty(*stack)) {
+        list_for_each_entry_safe(dir, sig, *stack, list)
+        {
+            list_del(&dir->list);
+            free(dir);
+        }
+    }
+    free(*stack);
+    *stack = NULL;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 //                                 Ambito                                    //
 ///////////////////////////////////////////////////////////////////////////////

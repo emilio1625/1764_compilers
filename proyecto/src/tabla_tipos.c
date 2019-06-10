@@ -17,7 +17,7 @@ struct list_head *tt_crear_tabla()
 
 void tt_eliminar_tabla(struct list_head **tt)
 {
-    if (*tt == NULL)
+    if (tt == NULL || *tt == NULL)
         return;
     struct tipo *tipo, *sig;
     if (!list_empty(*tt)) {
@@ -42,8 +42,10 @@ struct tipo *tt_insertar_tipo(struct list_head *tt,
     struct tipo *nuevo = malloc(sizeof(struct tipo));
     if (nuevo == NULL)
         return NULL;
-    nuevo->id =
-        list_empty(tt) ? 0 : list_first_entry(tt, struct tipo, list)->id + 1;
+    if (list_empty(tt))
+        nuevo->id = 0;
+    else
+        nuevo->id = list_first_entry(tt, struct tipo, list)->id + 1;
     nuevo->tipo = tipo;
     nuevo->base = base;
     nuevo->dim = dim;

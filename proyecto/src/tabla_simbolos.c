@@ -50,7 +50,7 @@ struct list_head *ts_crear_tabla()
 
 void ts_eliminar_tabla(struct list_head **ts)
 {
-    if (*ts == NULL)
+    if (ts == NULL || *ts == NULL)
         return;
     struct simbolo *tmp, *sig;
     if (!list_empty(*ts)) {
