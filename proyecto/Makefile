@@ -7,7 +7,6 @@ LEXERC	=	"src/lexer.c"
 LEXERH	=	"include/lexer.h"
 TTABLEC =	"src/tabla_tipos.c"
 STABLEC =	"src/tabla_simbolos.c"
-LABELC  =	"src/etiqueta.c"
 STACKC  =   "src/stack.c"
 PARSERD	=	"src/parser.dot"
 PARSERI	=	"parser.png"
@@ -27,7 +26,7 @@ parser.png: src/parser.dot
 	dot -Tpng $(PARSERD) > $(PARSERI)
 
 compiler: src/main.c src/lexer.c src/parser.c include/parser.h include/lexer.h
-	gcc $(CFLAGS) -o $(OUTPUT) $(LABELC) $(STACKC) $(TTABLEC) $(STABLEC) $(PARSERC) $(LEXERC) $(MAINC)
+	gcc $(CFLAGS) -o $(OUTPUT) $(STACKC) $(TTABLEC) $(STABLEC) $(PARSERC) $(LEXERC) $(MAINC)
 
 test:
 	./$(OUTPUT) $(TESTF)
