@@ -1,6 +1,7 @@
 %{
 
 #include <stdio.h>
+#include "tabla_tipos.h"
 #include "parser.h"
 
 %}
@@ -31,7 +32,6 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
     /* Tipos de dato */
 "entero"    {return INT     ;}
 "real"      {return FLOAT   ;}
-"doble"     {return DOUBLE  ;}
 "letra"     {return CHAR    ;}
 "nada"      {return VOID    ;}
 "estruc"    {return STRUCT  ;}
@@ -54,21 +54,23 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
 "cierto"    {return TRUE    ;}
 "falso"     {return FALSE   ;}
         /* Caracteres y cadenas */
-\'{ascii}?\' {return CCHAR   ;}
-\"{ascii}*\" {return STR    ;}
+\'{ascii}?\' {strncpy(yylval.str32, yytext, 32); return CCHAR;}
+\"{ascii}*\" {strncpy(yylval.str32, yytext, 32); return STR  ;}
 ":"         {return DP      ;}
 ";"         {return PYC     ;}
 "{"         {return LI      ;}
 "}"         {return LD      ;}
         /* Numeros */
 {entero} {
-    yylval.num.tipo = INT;
-    strcpy(yylval.num.val, yytext);
+    yylval.num.tipo = TT_INT;
+    strncpy(yylval.num.sval, yytext, 32);
+    yylval.num.val.i = (int) strtol(yytext, NULL, 0);
     return NUMERO;
 }
 {flotante} {
-    yylval.num.tipo = FLOAT;
-    strcpy(yylval.num.val, yytext);
+    yylval.num.tipo = TT_FLOAT;
+    strncpy(yylval.num.sval, yytext, 32);
+    yylval.num.val.f = (float) strtod(yytext, NULL);
     return NUMERO;
 }
     /* Operadores */
@@ -93,11 +95,12 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
 "o"     {return OR  ;}
 "="     {return ASIG;}
 ","     {return COMA;}
-    /* Identificadores */
-{id} { strcpy(yylval.id, yytext); return ID;}
     /* Espacios en blanco */
 [ \t\n]+ {}
-. {printf("Error lexico en la linea %d\n", yylineno);}
+    /* Identificadores */
+{id} { strncpy(yylval.str32, yytext, 32); return ID;}
+
+. {printf("Error lexico en la linea %d\n", yylineno); exit(-1);}
 
 %%
 

@@ -6,10 +6,11 @@
 #include <string.h>
 #include "list.h"
 #include "tabla_tipos.h"
+#include "codigo_intermedio.h"
 #include "tools.h"
 
-char g_tipo[5];
-u16 dir_actual;
+u16 dir_actual, dir_previa;
+struct tipo *tipo_g;
 struct list_head *tt_stack, *ts_stack, *dir_stack, *code_list, *tt_actual, *ts_actual;
 
 void init();
@@ -29,13 +30,14 @@ extern char* yytext;
             float f;
         } val;
     } num;
+    struct tipo *tipo;
     char str32[32];
 }
 
 /* Terminales */
     /* Palabras reservadas */
         /* Tipos de dato */
-%token INT FLOAT DOUBLE CHAR VOID STRUCT
+%token INT FLOAT CHAR VOID STRUCT
         /* Control de flujo */
 %token IF ELSE WHILE DO FOR SWITCH CASE BREAK DEFAULT
         /* Funciones */
@@ -47,7 +49,7 @@ extern char* yytext;
         /* Caracter y cadenas */
 %token CCHAR STR
         /* Numerica */
-%token NUMERO
+%token<num> NUMERO
     /* Otros */
 %token DP PYC LI LD
 /* Precedencia de operadores */
@@ -65,7 +67,9 @@ extern char* yytext;
 %nonassoc IF
 %nonassoc ELSE
 /* Identificadores */
-%token ID
+%token<str32> ID
+
+%type<tipo> tipo lista arreglo
 
 %start programa
 
@@ -80,21 +84,59 @@ programa        : {
                     destroy();
                 };
 
-declaraciones   : tipo lista PYC declaraciones
+declaraciones   : tipo {tipo_g = $1;} lista PYC declaraciones
                 | ;
 
-tipo            : INT
-                | FLOAT
-                | DOUBLE
-                | CHAR
-                | VOID
-                | STRUCT LI declaraciones LD ;
+tipo            : INT {$$ = tt_buscar_id(tt_actual, TT_INT);}
+                | FLOAT {$$ = tt_buscar_id(tt_actual, TT_FLOAT);}
+                | CHAR {$$ = tt_buscar_id(tt_actual, TT_CHAR);}
+                | VOID {$$ = tt_buscar_id(tt_actual, TT_VOID);}
+                | STRUCT {
+                    ambito_crear(tt_stack, &tt_actual,
+                                ts_stack, &ts_actual,
+                                dir_stack, &dir_actual);
+                } LI declaraciones LD {
+                    printf("Tablas de struct\n");
+                    tt_imprimir_tabla(tt_actual);
+                    ts_imprimir_tabla(ts_actual);
 
-lista           : lista COMA ID arreglo
-                | ID arreglo;
+                    dir_previa = dir_actual;
+                    ambito_restaurar(tt_stack, &tt_actual,
+                                    ts_stack, &ts_actual,
+                                    dir_stack, &dir_actual, 1);
 
-arreglo         : CI NUMERO CD arreglo
-                | ;
+                    $$ = tt_insertar_tipo(tt_actual,
+                            TT_STRUCT, NULL, 0, dir_previa);
+                };
+
+lista           : lista COMA ID arreglo {
+                    if (ts_buscar_id(ts_actual, $3) == NULL) {
+                        ts_insertar_simbolo(ts_actual,
+                            $3, $4, TS_VAR, dir_actual, NULL, 0);
+                        dir_actual += $4->tam;
+                    } else {
+                        yyerror("El simbolo ya existe");
+                    }
+                }
+                | ID arreglo {
+                    if (ts_buscar_id(ts_actual, $1) == NULL) {
+                        ts_insertar_simbolo(ts_actual,
+                            $1, $2, TS_VAR, dir_actual, NULL, 0);
+                        dir_actual += $2->tam;
+                    } else {
+                        yyerror("El simbolo ya existe");
+                    }
+                };
+
+arreglo         : CI NUMERO CD arreglo {
+                    if ($2.tipo == TT_INT && $2.val.i > 0) {
+                        $$ = tt_insertar_tipo(tt_actual,
+                            TT_ARRAY, $4, 0, $2.val.i);
+                    } else {
+                        yyerror("El indice debe ser entero mayor a 0");
+                    }
+                }
+                | {$$ = tipo_g;};
 
 funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias LD funciones
                 | ;
@@ -174,7 +216,7 @@ relacional      : LT
 %%
 
 void yyerror(char * str) {
-    printf("Error: %s en la linea %d, %s\n", str, yylineno, yytext);
+    printf("Error: En la linea %d, simbolo %s: %s\n", yylineno, yytext, str);
 }
 
 void init()
