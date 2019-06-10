@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "list.h"
+#include "tabla_tipos.h"
+
 void yyerror(char * str);
 char g_tipo[5];
 extern int yylineno;
@@ -14,11 +16,14 @@ extern char* yytext;
 
 %union {
     struct {
-        int tipo;
-        char val[32];
+        enum TT tipo;
+        char sval[32];
+        union {
+            int i;
+            float f;
+        } val;
     } num;
-    char tipo[5];
-    char id[32];
+    char str32[32];
 }
 
 /* Terminales */
@@ -56,9 +61,6 @@ extern char* yytext;
 /* Identificadores */
 %token ID
 
-%type<tipo> tipo;
-%type<id> ID;
-
 %start programa
 
 /* Esquema de traduccion */
@@ -67,23 +69,23 @@ extern char* yytext;
 
 programa        : declaraciones funciones;
 
-declaraciones   : declaraciones tipo {strcpy(g_tipo, $2);} lista PYC
+declaraciones   : tipo lista PYC declaraciones
                 | ;
 
-tipo            : INT {strcpy($$, "int");}
-                | FLOAT {strcpy($$, "float");}
-                | DOUBLE {strcpy($$, "doubl");}
-                | CHAR {strcpy($$, "char");}
-                | VOID {strcpy($$, "void");}
-                | STRUCT LI declaraciones LD {strcpy($$, "struc");};
+tipo            : INT
+                | FLOAT
+                | DOUBLE
+                | CHAR
+                | VOID
+                | STRUCT LI declaraciones LD ;
 
-lista           : lista COMA ID {printf("El tipo de %s es %s\n", $3, g_tipo);} arreglo
-                | ID {printf("El tipo de %s es %s\n", $1, g_tipo);} arreglo;
+lista           : lista COMA ID arreglo
+                | ID arreglo;
 
 arreglo         : CI NUMERO CD arreglo
                 | ;
 
-funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias LD funciones
+funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencia LD funciones
                 | ;
 
 argumentos      : lista_argumentos
@@ -95,26 +97,25 @@ lista_argumentos: lista_argumentos COMA tipo ID parte_arreglo
 parte_arreglo   : CI CD parte_arreglo
                 | ;
 
-sentencias      : sentencias sentencia
-                | sentencia;
-
-sentencia       : IF PI condicion PD sentencia
+sentencia       : sentencia sentencia
+                | IF PI condicion PD sentencia
                 | IF PI condicion PD sentencia ELSE sentencia
                 | WHILE PI condicion PD sentencia
                 | DO sentencia WHILE PI condicion PD PYC
                 | FOR PI sentencia PYC condicion PYC sentencia PD sentencia
                 | SWITCH PI expresion PD LI casos predeterminado LD
                 | BREAK PYC
-                | LI sentencias LD
+                | LI sentencia LD
                 | parte_izquierda ASIG expresion PYC
                 | RETURN expresion PYC
                 | RETURN PYC
-                | PRINT expresion PYC;
+                | PRINT expresion PYC
+                | expresion PYC;
 
-casos           : CASE DP NUMERO sentencia predeterminado
+casos           : CASE NUMERO DP sentencia casos | CASE NUMERO DP sentencia;
+
+predeterminado  : DEFAULT DP sentencia
                 | ;
-
-predeterminado  : DEFAULT DP sentencia;
 
 parte_izquierda : ID
                 | var_arreglo

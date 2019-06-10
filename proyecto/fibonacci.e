@@ -17,7 +17,7 @@ funcion entero fib_i(entero n)
     si (n < 2) {
         devolver n;
     } sino {
-        desde (k = 0;; k <= n; k = k + 1;) {
+        desde (k = 0; k <= n; k = k + 1;) {
             c = b + a;
             a = b;
             b = c;
