@@ -87,7 +87,7 @@ void ts_imprimir_simbolo(struct simbolo *sim)
         return;
     }
     printf(
-        "pos: %lu,\t id: %s,\t tipo: %lu,\t tipoVar: %u\t, dir:%lx,\t "
+        "pos: %lu,\t id: %s,\t tipo: %lu,\t tipoVar: %u\t, dir:%04lx,\t "
         "argc:%u\n",
         sim->pos, sim->id, sim->tipo->id, sim->tipo_var, sim->dir, sim->argc);
 }

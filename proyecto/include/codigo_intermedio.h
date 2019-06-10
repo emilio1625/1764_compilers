@@ -62,7 +62,7 @@ struct list_head *combinar(struct list_head *head1, struct list_head *head2)
     return head1;
 }
 
-void backpatch(struct list_head *code, struct list_head *dirs, char label[16])
+void code_backpatch(struct list_head *code, struct list_head *dirs, char label[16])
 {
     if (dirs == NULL || list_empty(dirs) || code == NULL || list_empty(code) ||
         label == NULL)
