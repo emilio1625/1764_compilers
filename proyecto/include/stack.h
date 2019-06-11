@@ -45,7 +45,7 @@ struct list_head *stack_pop(struct list_head *stack);
 struct list_head *stack_peek(struct list_head *stack);
 
 /**
- * stack_imprimir - imprime todos el stack, el elemento mas reciente primero
+ * stack_imprimir - imprime todo el stack, el elemento mas reciente primero
  * @stack: stack a imprimir
  * @imprimir_elemento: una funcion para imprimir un elemento del stack
  */
