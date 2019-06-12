@@ -1,5 +1,5 @@
 CC		=	gcc
-CFLAGS	=	-Wall -Wextra -g3 -std=c99 -I./include
+CFLAGS	=	-Wall -Wextra -g3 -std=gnu99 -I./include
 MAINC	=	"src/main.c"
 PARSERC	=	"src/parser.c"
 PARSERH	=	"include/parser.h"
