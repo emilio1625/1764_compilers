@@ -8,23 +8,24 @@ struct simbolo *ts_insertar_simbolo(struct list_head *ts,
                                     struct tipo *tipo,
                                     enum TS tipo_var,
                                     u16 dir,
-                                    u8 *argv,
-                                    u8 argc)
+                                    u8 argc,
+                                    struct list_head *argv)
 {
     if (ts == NULL)
         return NULL;
     struct simbolo *nuevo = malloc(sizeof(struct simbolo));
     if (nuevo == NULL)
         return NULL;
-    nuevo->pos =
-        list_empty(ts) ? 0 : list_last_entry(ts, struct simbolo, list)->pos + 1;
-    nuevo->id = strndup(id, 16);
-    nuevo->tipo = tipo;
+    if (list_empty(ts))
+        nuevo->pos = 0;
+    else
+        nuevo->pos = list_first_entry(ts, struct simbolo, list)->pos + 1;
+    nuevo->id       = strndup(id, 16);
+    nuevo->tipo     = tipo;
     nuevo->tipo_var = tipo_var;
-    nuevo->dir = dir;
-    nuevo->argc = argc;
-    nuevo->argv = malloc(argc * sizeof(u8));
-    memcpy(nuevo->argv, argv, argc * sizeof(u8));
+    nuevo->dir      = dir;
+    nuevo->argc     = argc;
+    nuevo->argv     = argv;
     list_add(&nuevo->list, ts);
     return nuevo;
 }
@@ -72,7 +73,6 @@ void ts_eliminar_tabla(struct list_head **ts)
         {
             list_del(&tmp->list);
             free(tmp->id);
-            free(tmp->argv);
             free(tmp);
         }
     }

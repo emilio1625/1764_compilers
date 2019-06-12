@@ -22,9 +22,10 @@ enum TS {
  * @tipo: apuntador a un tipo en la tabla de tipos
  * @tipo_var: tipo que es este simbolo
  * @dir: direccion de memoria en la que se almacena este tipo
- * @argv: tipo de los argumentos si el simbolo es una funcion / apuntador a
- *  enteros/indices de la tabla de tipos
- * @argc: numero de argumentos si el simbolo es una funcion
+ * @argc: numero de argumentos de una funcion (las primeras entradas de la
+ *  tabla de simbolos)
+ * @argv: apuntador a la tabla de simbolos de los argumentos de la funcion o
+ *  de los mienbros de un struct
  * @list: apuntadores al siguiente elemento y al elemento anterior en la tabla
  */
 struct simbolo {
@@ -33,8 +34,8 @@ struct simbolo {
     struct tipo *tipo;
     enum TS tipo_var;
     u16 dir;
-    u8 *argv;
     u8 argc;
+    struct list_head *argv;
     struct list_head list;
 };
 
@@ -53,8 +54,8 @@ struct simbolo *ts_insertar_simbolo(struct list_head *ts,
                                     struct tipo *tipo,
                                     enum TS tipo_var,
                                     u16 dir,
-                                    u8 *argv,
-                                    u8 argc);
+                                    u8 argc,
+                                    struct list_head *argv);
 
 /**
  * ts_buscar_id - busca un simbolo en la tabla de simbolos por su nombre

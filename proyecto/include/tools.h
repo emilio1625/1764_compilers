@@ -177,7 +177,7 @@ void ambito_restaurar(struct list_head *tt_s,
 {
     if (eliminar)
         tt_eliminar_tabla(tt);
-    *ts = stack_pop(tt_s);
+    *tt = stack_pop(tt_s);
 
     if (eliminar)
         ts_eliminar_tabla(ts);

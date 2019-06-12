@@ -9,7 +9,8 @@
 #include "codigo_intermedio.h"
 #include "tools.h"
 
-u16 dir_g;
+u16 dir_g, salida_ciclo_g;
+u8 argc, dim;
 struct tipo *tipo_g;
 struct list_head *tt_stack, *ts_stack, *dir_stack, *code_list, *tt_actual,
     *ts_actual;
@@ -47,7 +48,7 @@ extern char* yytext;
     } cond;
     struct {
         enum TT tipo;
-         size_t tam;
+        size_t tam;
         char dir[16];
     } expr;
     char str16[16];
@@ -90,7 +91,7 @@ extern char* yytext;
 
 %type<tipo> tipo lista arreglo
 %type<sent> sentencias sentencia
-%type<expr> expresion
+%type<expr> expresion parte_izquierda var_arreglo
 %type<cond> condicion
 %type<str16> relacional
 
@@ -110,8 +111,17 @@ programa        : {
                     destroy();
                 };
 
-declaraciones   : tipo {tipo_g = $1;} lista PYC declaraciones
-                | ;
+declaraciones   : tipo {
+                    if ($1->tipo == TT_VOID)
+                        yyerror("Vacio no es un tipo de declaracion valido");
+                    else
+                        tipo_g = $1;
+                } lista PYC declaraciones
+                | {
+                    printf("fin declaraciones\n");
+                    tt_imprimir_tabla(tt_actual);
+                    ts_imprimir_tabla(ts_actual);
+                };
 
 tipo            : INT {$$ = tt_buscar_id(tt_actual, TT_INT);}
                 | FLOAT {$$ = tt_buscar_id(tt_actual, TT_FLOAT);}
@@ -127,18 +137,26 @@ tipo            : INT {$$ = tt_buscar_id(tt_actual, TT_INT);}
                     ts_imprimir_tabla(ts_actual);
 
                     u16 dir_previa = dir_g;
+                    struct list_head *tt_previa = stack_peek(tt_stack),
+                                     *ts_previa = stack_peek(ts_stack);
                     ambito_restaurar(tt_stack, &tt_actual,
                                     ts_stack, &ts_actual,
-                                    dir_stack, &dir_g, 1);
+                                    dir_stack, &dir_g, 0);
 
                     $$ = tt_insertar_tipo(tt_actual,
-                            TT_STRUCT, NULL, 0, dir_previa);
+                                          TT_STRUCT,
+                                          NULL,
+                                          0,
+                                          dir_previa,
+                                          tt_previa,
+                                          ts_previa);
                 };
 
 lista           : lista COMA ID arreglo {
                     if (ts_buscar_id(ts_actual, $3) == NULL) {
                         ts_insertar_simbolo(ts_actual,
-                            $3, $4, TS_VAR, dir_g, NULL, 0);
+                            $3, $4, TS_VAR, dir_g, 0,
+                            $4->tipo == TT_STRUCT ? $4->ts : NULL);
                         dir_g += $4->tam;
                     } else {
                         yyerror("El simbolo ya existe");
@@ -147,7 +165,8 @@ lista           : lista COMA ID arreglo {
                 | ID arreglo {
                     if (ts_buscar_id(ts_actual, $1) == NULL) {
                         ts_insertar_simbolo(ts_actual,
-                            $1, $2, TS_VAR, dir_g, NULL, 0);
+                            $1, $2, TS_VAR, dir_g, 0,
+                            $2->tipo == TT_STRUCT ? $2->ts : NULL);
                         dir_g += $2->tam;
                     } else {
                         yyerror("El simbolo ya existe");
@@ -157,30 +176,92 @@ lista           : lista COMA ID arreglo {
 arreglo         : CI NUMERO CD arreglo {
                     if ($2.tipo == TT_INT && $2.val.i > 0) {
                         $$ = tt_insertar_tipo(tt_actual,
-                            TT_ARRAY, $4, 0, $2.val.i);
+                            TT_ARRAY, $4, 0, $2.val.i, NULL, NULL);
                     } else {
                         yyerror("El indice debe ser entero mayor a 0");
                     }
                 }
                 | {$$ = tipo_g;};
 
-funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias {
-                    if ($9.tipo != $2->tipo) {
-                        yyerror("El tipo no coincide");
+funciones       : FUNCT tipo ID PI {
+                    ambito_crear(tt_stack, &tt_actual,
+                                 ts_stack, &ts_actual,
+                                 dir_stack, &dir_g);
+                    argc = 0;
+                } argumentos PD {
+                    struct list_head *ts_global = stack_peek(ts_stack);
+                    if (ts_buscar_id(ts_global, $3) == NULL) {
+                        ts_insertar_simbolo(ts_global,
+                            $3, $2, TS_FUN, dir_g, argc, ts_actual);
+                        code_push(code_list, "label", "", "", $3);
                     }
-                    u16 inst = code_push(code_list, "label", "", "", "__");
-                    dir_push($9.next, inst);
-                    code_backpatch(code_list, $9.next, etiqueta_crear());
-                } LD funciones
+                } LI declaraciones sentencias LD {
+                    if ($11.tipo != $2->tipo) {
+                        yyerror("Tipo de retorno incorrecto");
+                    }
+                    ambito_restaurar(tt_stack, &tt_actual,
+                                     ts_stack, &ts_actual,
+                                     dir_stack, &dir_g, 1);
+                    /* u16 inst = code_push(code_list, "label", "", "", "__"); */
+                    /* dir_push($11.next, inst); */
+                    /* code_backpatch(code_list, $11.next, etiqueta_crear()); */
+                    // instruccion separadora
+                    code_push(code_list, "--", "--", "--", "--");
+                } funciones
                 | ;
 
 argumentos      : lista_argumentos
                 | ;
 
-lista_argumentos: lista_argumentos COMA tipo ID parte_arreglo
-                | tipo ID parte_arreglo;
+lista_argumentos: lista_argumentos COMA tipo ID {
+                    if ($3->tipo == TT_VOID) {
+                        yyerror("tipo de parametro no valido");
+                    } else {
+                        // indica el numero de dimensiones de un arreglo
+                        dim = 0;
+                    }
+                } parte_arreglo {
+                    struct tipo *tipo_anterior = $3;
+                    if (dim) {
+                        // no sabemos el tamaño de cada dimension, asi que
+                        // suponemos el maximo (255)
+                        for (int i = 0; i < dim; i++) {
+                            tipo_anterior = tt_insertar_tipo(tt_actual,
+                                TT_ARRAY, tipo_anterior, 0, 255, NULL, NULL);
+                        }
+                        // un arreglo mide solo la direccion del primer elemento
+                    }
+                    if (ts_buscar_id(ts_actual, $4) == NULL) {
+                        ts_insertar_simbolo(ts_actual,
+                            $4, tipo_anterior, TS_PARAM, dir_g, 0, NULL);
+                        dir_g += tipo_anterior->tam;
+                        argc += 1;
+                    } else {
+                        yyerror("El simbolo ya existe");
+                    }
+                }
+                | tipo ID {dim = 0;} parte_arreglo {
+                    struct tipo *tipo_anterior = $1;
+                    if (dim) {
+                        // no sabemos el tamaño de cada dimension, asi que
+                        // suponemos el maximo (255)
+                        for (int i = 0; i < dim; i++) {
+                            tipo_anterior = tt_insertar_tipo(tt_actual,
+                                TT_ARRAY, tipo_anterior, 0, 255, NULL, NULL);
+                        }
+                        // un arreglo mide solo la direccion del primer elemento
+                    }
+                    if (ts_buscar_id(ts_actual, $2) == NULL) {
+                        ts_insertar_simbolo(ts_actual,
+                            $2, tipo_anterior, TS_PARAM, dir_g, 0, NULL);
+                        dir_g += tipo_anterior->tam;
+                        argc += 1;
+                    } else {
+                        yyerror("El simbolo ya existe");
+                    }
+                };
 
-parte_arreglo   : CI CD parte_arreglo
+parte_arreglo   : CI CD {dim += 1;} parte_arreglo
                 | ;
 
 sentencias      : sentencias {
@@ -195,17 +276,13 @@ sentencias      : sentencias {
 sentencia       : IF PI condicion PD {
                     u16 inst = code_push(code_list, "label", "", "", "__");
                     dir_push($3.true, inst);
-                } sentencia {
-                    u16 inst = code_push(code_list, "goto", "", "", "__");
-                    $<sent>$.next = list_new();
-                    dir_push($<sent>$.next, inst);
-                } ELSE {
+                } sentencia ELSE {
                     u16 inst = code_push(code_list, "label", "", "", "__");
                     dir_push($3.false, inst);
                 } sentencia {
                     code_backpatch(code_list, $3.true, etiqueta_crear());
                     code_backpatch(code_list, $3.false, etiqueta_crear());
-                    $$.next = combinar($6.next, combinar($<sent>7.next, $10.next));
+                    $$.next = combinar($6.next, $9.next);
                 }
                 | WHILE PI {
                     u16 inst = code_push(code_list, "label", "", "", "__");
@@ -222,15 +299,62 @@ sentencia       : IF PI condicion PD {
                     code_backpatch(code_list, $4.true, etiqueta_crear());
                     code_push(code_list, "goto", "", "", et);
                     $$.next = $4.false;
+                    if (salida_ciclo_g) {
+                        dir_push($$.next, salida_ciclo_g);
+                        salida_ciclo_g = 0;
+                    }
                 }
-                | DO sentencia WHILE PI condicion PD PYC {}
-                | FOR PI sentencia condicion PYC sentencia PD sentencia {}
+                | DO {
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    $<sent>$.next = list_new();
+                    dir_push($<sent>$.next, inst);
+                } sentencia WHILE PI {
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($3.next, inst);
+                } condicion PD PYC {
+                    $7.true = combinar($<sent>2.next, $7.true);
+                    code_backpatch(code_list, $7.true, etiqueta_crear());
+                    code_backpatch(code_list, $3.next, etiqueta_crear());
+                    $$.next = $7.false;
+                    if (salida_ciclo_g) {
+                        dir_push($$.next, salida_ciclo_g);
+                        salida_ciclo_g = 0;
+                    }
+                }
+                | FOR PI sentencia {
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($3.next, inst);
+                } condicion PYC {
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    $<sent>$.next = list_new();
+                    dir_push($<sent>$.next, inst);
+                } sentencia PD {
+                    u16 inst = code_push(code_list, "goto", "", "", "__");
+                    dir_push($8.next, inst);
+                    inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($5.true, inst);
+                } sentencia {
+                    u16 inst = code_push(code_list, "goto", "", "", "__");
+                    dir_push($<sent>7.next, inst);
+                    $11.next = combinar($11.next, $<sent>7.next);
+                    code_backpatch(code_list, $11.next, etiqueta_crear());
+                    $3.next = combinar($3.next, $8.next);
+                    code_backpatch(code_list, $3.next, etiqueta_crear());
+                    code_backpatch(code_list, $5.true, etiqueta_crear());
+                    $$.next = $5.false;
+                    if (salida_ciclo_g) {
+                        dir_push($$.next, salida_ciclo_g);
+                        salida_ciclo_g = 0;
+                    }
+                }
                 | SWITCH PI expresion PD LI casos predeterminado LD {}
-                | BREAK PYC {}
-                | LI sentencias LD {}
+                | BREAK PYC {
+                    salida_ciclo_g = code_push(code_list, "goto", "", "", "__");
+                }
+                | LI sentencias LD {$$ = $2;}
                 | parte_izquierda ASIG expresion PYC {
                     // TODO: Comprobar tipos
-                    code_push(code_list, "=", $3.dir, "", "placeholder");
+                    code_push(code_list, "=", $3.dir, "", $1.dir);
                     $$.next = list_new();
                 }
                 | RETURN expresion PYC {}
@@ -244,13 +368,71 @@ casos           : CASE NUMERO DP sentencia casos
 predeterminado  : DEFAULT DP sentencia
                 | ;
 
-parte_izquierda : ID
-                | var_arreglo
-                | ID PTO ID
-                | ;
+parte_izquierda : ID {
+                    struct simbolo *sim = ts_buscar_id(ts_actual, $1);
+                    if (sim != NULL) {
+                        $$.tipo = sim->tipo->id;
+                        strncpy($$.dir, $1, 16);
+                    } else {
+                        yyerror("El simbolo no existe");
+                    }
+                }
+                | var_arreglo {$$ = $1;}
+                | ID PTO ID{
+                    struct simbolo *sim1 = ts_buscar_id(ts_actual, $1), *sim2;
+                    if (sim1 != NULL) {
+                        if (sim1->tipo->tipo == TT_STRUCT) {
+                            sim2 = ts_buscar_id(sim1->argv, $3);
+                            if (sim2 != NULL) {
+                                $$.tipo = sim2->tipo->id;
+                                printf("\n\n%d\n\n", $$.tipo);
+                                snprintf($$.dir, 16, "%s.%s", $1, $3);
+                            } else {
+                                yyerror("no existe el miembro");
+                            }
+                        } else {
+                            yyerror("el simbolo no es una estructura");
+                        }
+                    } else {
+                        yyerror("El simbolo no existe");
+                    }
+                };
 
-var_arreglo     : ID CI expresion CD
-                | var_arreglo CI expresion CD;
+var_arreglo     : ID CI expresion CD {
+                    struct simbolo *sim = ts_buscar_id(ts_actual, $1);
+                    if (sim != NULL) {
+                        tipo_g = sim->tipo;
+                        if (tipo_g->tipo == TT_ARRAY) {
+                            if ($3.tipo == TT_INT) {
+                                $$.tipo = tipo_g->base->id;
+                                snprintf($$.dir, 16, "%s[%s]", $1, $3.dir);
+                            } else {
+                                yyerror("el indice debe ser entero");
+                            }
+                        } else {
+                            yyerror("El simbolo no es un arreglo");
+                        }
+                    } else {
+                        yyerror("El simbolo no existe");
+                    }
+                }
+                | var_arreglo CI expresion CD {
+                    tipo_g = tipo_g->base;
+                    if (tipo_g != NULL) {
+                        if (tipo_g->tipo == TT_ARRAY) {
+                            if ($3.tipo == TT_INT) {
+                                $$.tipo = tipo_g->id;
+                                snprintf($$.dir, 16, "%s[%s]", $1.dir, $3.dir);
+                            } else {
+                                yyerror("el indice debe ser entero");
+                            }
+                        } else {
+                            yyerror("El simbolo no es un arreglo");
+                        }
+                    } else {
+                        yyerror("dimensiones del arreglo excedidas");
+                    }
+                };
 
 expresion       : expresion MAS expresion {
                     char *dir1, *dir2;
@@ -317,21 +499,14 @@ expresion       : expresion MAS expresion {
                         yyerror("Los tipos no son operables");
                     }
                 }
-                | var_arreglo {}
                 | NUMERO {
                     $$.tipo = $1.tipo;
                     strncpy($$.dir, $1.sval, 16);
                 }
                 | CCHAR {}
                 | STR {}
-                | ID {
-                    struct simbolo *id = ts_buscar_id(ts_actual, $1);
-                    if (id != NULL) {
-                        $$.tipo = id->tipo->id;
-                        strncpy($$.dir, $1, 16);
-                    } else {
-                        yyerror("El id no existe");
-                    }
+                | parte_izquierda {
+                    $$ = $1;
                 }
                 | ID PI parametros PD {};
 

@@ -23,6 +23,8 @@ enum TT {
  * @base: tipos primitivo del que heredan los tipos compuestos
  * @tam: tamaño en bytes que ocupa el tipo en memoria
  * @dim: dimension del tipo compuesto
+ * @tt: tabla de tipos asociada a un struct
+ * @ts: tabla de simbolos asociada a un struct
  * @list: apuntadores al elemento anterior y siguiente en la tabla
  */
 struct tipo {
@@ -31,6 +33,7 @@ struct tipo {
     struct tipo *base;
     u16 tam;
     u8 dim;
+    struct list_head *tt, *ts;
     struct list_head list;
 };
 
@@ -58,7 +61,9 @@ struct tipo *tt_insertar_tipo(struct list_head *tt,
                               enum TT tipo,
                               struct tipo *base,
                               u16 tam,
-                              u8 dim);
+                              u8 dim,
+                              struct list_head *tts,
+                              struct list_head *tss);
 
 /**
  * tt_buscar_id - busca un tipo por su posicion en la tabla de tipos
