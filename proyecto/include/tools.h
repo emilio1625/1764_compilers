@@ -7,28 +7,6 @@
 #include "tabla_simbolos.h"
 #include "tabla_tipos.h"
 
-///////////////////////////////////////////////////////////////////////////////
-//                               Etiquetas                                   //
-///////////////////////////////////////////////////////////////////////////////
-
-/**
- * etiqueta_crear - crea una nueva etiqueta aleatoria
- */
-char *etiqueta_crear()
-{
-    char *str = malloc(16 * sizeof(char));
-    static const char set[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
-    sprintf(str, "label_");
-
-    for (int i = 6; i < 16; ++i) {
-        str[i] = set[rand() % (sizeof(set) - 1)];
-    }
-
-    str[16] = '\0';
-    return str;
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                         Stack de direciones                               //
@@ -106,6 +84,38 @@ void dir_eliminar(struct list_head **head)
     }
     free(*head);
     *head = NULL;
+}
+
+/**
+ * combinar - combina de forma segura 2 listas, deja la lista vaciada en un
+ * estado valido
+ * @head1: un apuntador al inicio de una lista
+ * @head2: un apuntador a otra lista
+ * @return: apuntador a alguna de las dos lista, la cual contiene la lista unida
+ *
+ * Despues de realizar la union de las lista, la lista vaciada es reiniciada
+ * para evitar acceder a los elementos que antes contenia a partir de ella,
+ * ejecutar list_empty sobre ella devuelve true
+ */
+struct list_head *combinar(struct list_head *head1, struct list_head *head2)
+{
+    if (head1 == head2) {
+        return head1;
+    } else if (head1 == NULL || list_empty(head1)) {
+        return head2;
+    } else if (head2 == NULL || list_empty(head2)) {
+        return head1;
+    } else {
+        list_splice_init(head2, head1);
+    }
+    return head1;
+}
+
+void _dir_imprimir(struct list_head *head) {
+    struct dir *dir;
+    list_for_each_entry(dir, head, list) {
+        printf("%lu\n", dir->dir);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

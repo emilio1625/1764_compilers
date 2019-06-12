@@ -9,7 +9,7 @@
 #include "codigo_intermedio.h"
 #include "tools.h"
 
-u16 dir_actual, dir_previa, tmp;
+u16 dir_g;
 struct tipo *tipo_g;
 struct list_head *tt_stack, *ts_stack, *dir_stack, *code_list, *tt_actual,
     *ts_actual;
@@ -25,7 +25,7 @@ extern char* yytext;
 %union {
     struct {
         enum TT tipo;
-        char sval[32];
+        char sval[16];
         union {
             int i;
             float f;
@@ -47,10 +47,10 @@ extern char* yytext;
     } cond;
     struct {
         enum TT tipo;
-        size_t tam;
-        u16 dir;
+         size_t tam;
+        char dir[16];
     } expr;
-    char str32[32];
+    char str16[16];
 }
 
 /* Terminales */
@@ -86,13 +86,13 @@ extern char* yytext;
 %nonassoc IF
 %nonassoc ELSE
 /* Identificadores */
-%token<str32> ID
+%token<str16> ID
 
 %type<tipo> tipo lista arreglo
 %type<sent> sentencias sentencia
 %type<expr> expresion
 %type<cond> condicion
-%type<str32> relacional
+%type<str16> relacional
 
 %start programa
 
@@ -103,6 +103,7 @@ extern char* yytext;
 programa        : {
                     init();
                 } declaraciones funciones {
+                    code_imprimir(code_list);
                     // TODO: limpiar el desmadre
                     stack_imprimir(ts_stack, ts_imprimir_tabla);
                     stack_imprimir(tt_stack, tt_imprimir_tabla);
@@ -119,16 +120,16 @@ tipo            : INT {$$ = tt_buscar_id(tt_actual, TT_INT);}
                 | STRUCT {
                     ambito_crear(tt_stack, &tt_actual,
                                 ts_stack, &ts_actual,
-                                dir_stack, &dir_actual);
+                                dir_stack, &dir_g);
                 } LI declaraciones LD {
                     printf("Tablas de struct\n");
                     tt_imprimir_tabla(tt_actual);
                     ts_imprimir_tabla(ts_actual);
 
-                    dir_previa = dir_actual;
+                    u16 dir_previa = dir_g;
                     ambito_restaurar(tt_stack, &tt_actual,
                                     ts_stack, &ts_actual,
-                                    dir_stack, &dir_actual, 1);
+                                    dir_stack, &dir_g, 1);
 
                     $$ = tt_insertar_tipo(tt_actual,
                             TT_STRUCT, NULL, 0, dir_previa);
@@ -137,8 +138,8 @@ tipo            : INT {$$ = tt_buscar_id(tt_actual, TT_INT);}
 lista           : lista COMA ID arreglo {
                     if (ts_buscar_id(ts_actual, $3) == NULL) {
                         ts_insertar_simbolo(ts_actual,
-                            $3, $4, TS_VAR, dir_actual, NULL, 0);
-                        dir_actual += $4->tam;
+                            $3, $4, TS_VAR, dir_g, NULL, 0);
+                        dir_g += $4->tam;
                     } else {
                         yyerror("El simbolo ya existe");
                     }
@@ -146,8 +147,8 @@ lista           : lista COMA ID arreglo {
                 | ID arreglo {
                     if (ts_buscar_id(ts_actual, $1) == NULL) {
                         ts_insertar_simbolo(ts_actual,
-                            $1, $2, TS_VAR, dir_actual, NULL, 0);
-                        dir_actual += $2->tam;
+                            $1, $2, TS_VAR, dir_g, NULL, 0);
+                        dir_g += $2->tam;
                     } else {
                         yyerror("El simbolo ya existe");
                     }
@@ -167,8 +168,8 @@ funciones       : FUNCT tipo ID PI argumentos PD LI declaraciones sentencias {
                     if ($9.tipo != $2->tipo) {
                         yyerror("El tipo no coincide");
                     }
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($9.next, tmp);
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($9.next, inst);
                     code_backpatch(code_list, $9.next, etiqueta_crear());
                 } LD funciones
                 | ;
@@ -183,8 +184,8 @@ parte_arreglo   : CI CD parte_arreglo
                 | ;
 
 sentencias      : sentencias {
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($1.next, tmp);
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($1.next, inst);
                 } sentencia {
                     code_backpatch(code_list, $1.next, etiqueta_crear());
                     $$ = $3;
@@ -192,31 +193,31 @@ sentencias      : sentencias {
                 | sentencia {$$ = $1;};
 
 sentencia       : IF PI condicion PD {
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($3.true, tmp);
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($3.true, inst);
                 } sentencia {
-                    tmp = code_push(code_list, "goto", "", "", "__");
+                    u16 inst = code_push(code_list, "goto", "", "", "__");
                     $<sent>$.next = list_new();
-                    dir_push($<sent>$.next, tmp);
+                    dir_push($<sent>$.next, inst);
                 } ELSE {
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($3.false, tmp);
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($3.false, inst);
                 } sentencia {
                     code_backpatch(code_list, $3.true, etiqueta_crear());
                     code_backpatch(code_list, $3.false, etiqueta_crear());
                     $$.next = combinar($6.next, combinar($<sent>7.next, $10.next));
                 }
                 | WHILE PI {
-                    tmp = code_push(code_list, "label", "", "", "__");
+                    u16 inst = code_push(code_list, "label", "", "", "__");
                     $<sent>$.next = list_new();
-                    dir_push($<sent>$.next, tmp);
+                    dir_push($<sent>$.next, inst);
                 } condicion PD {
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($4.true, tmp);
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($4.true, inst);
                 }
                 sentencia {
                     char *et = etiqueta_crear();
-                    $7.next = combinar($7.next, $<siglista>3.next);
+                    $7.next = combinar($7.next, $<sent>3.next);
                     code_backpatch(code_list, $7.next, et);
                     code_backpatch(code_list, $4.true, etiqueta_crear());
                     code_push(code_list, "goto", "", "", et);
@@ -229,7 +230,7 @@ sentencia       : IF PI condicion PD {
                 | LI sentencias LD {}
                 | parte_izquierda ASIG expresion PYC {
                     // TODO: Comprobar tipos
-                    code_push(code_list, "=", $3.dir, "", "");
+                    code_push(code_list, "=", $3.dir, "", "placeholder");
                     $$.next = list_new();
                 }
                 | RETURN expresion PYC {}
@@ -251,16 +252,87 @@ parte_izquierda : ID
 var_arreglo     : ID CI expresion CD
                 | var_arreglo CI expresion CD;
 
-expresion       : expresion MAS expresion {}
-                | expresion MEN expresion {}
-                | expresion MUL expresion {}
-                | expresion DIV expresion {}
-                | expresion MOD expresion {}
+expresion       : expresion MAS expresion {
+                    char *dir1, *dir2;
+                    // TODO: Revisar que los tipos a operar son compatibles
+                    $$.tipo = tipo_max($1.tipo, $3.tipo);
+                    if ($$.tipo) {
+                        strncpy($$.dir, temporal_crear(), 16);
+                        dir1 = tipo_ampliar(code_list, $1.dir, $1.tipo, $$.tipo);
+                        dir2 = tipo_ampliar(code_list, $3.dir, $3.tipo, $$.tipo);
+                        code_push(code_list, "+", dir1, dir2, $$.dir);
+                    } else {
+                        yyerror("Los tipos no son operables");
+                    }
+                }
+                | expresion MEN expresion {
+                    char *dir1, *dir2;
+                    // TODO: Revisar que los tipos a operar son compatibles
+                    $$.tipo = tipo_max($1.tipo, $3.tipo);
+                    if ($$.tipo) {
+                        strncpy($$.dir, temporal_crear(), 16);
+                        dir1 = tipo_ampliar(code_list, $1.dir, $1.tipo, $$.tipo);
+                        dir2 = tipo_ampliar(code_list, $3.dir, $3.tipo, $$.tipo);
+                        code_push(code_list, "-", dir1, dir2, $$.dir);
+                    } else {
+                        yyerror("Los tipos no son operables");
+                    }
+                }
+                | expresion MUL expresion {
+                    char *dir1, *dir2;
+                    // TODO: Revisar que los tipos a operar son compatibles
+                    $$.tipo = tipo_max($1.tipo, $3.tipo);
+                    if ($$.tipo) {
+                        strncpy($$.dir, temporal_crear(), 16);
+                        dir1 = tipo_ampliar(code_list, $1.dir, $1.tipo, $$.tipo);
+                        dir2 = tipo_ampliar(code_list, $3.dir, $3.tipo, $$.tipo);
+                        code_push(code_list, "*", dir1, dir2, $$.dir);
+                    } else {
+                        yyerror("Los tipos no son operables");
+                    }
+                }
+                | expresion DIV expresion {
+                    char *dir1, *dir2;
+                    // TODO: Revisar que los tipos a operar son compatibles
+                    $$.tipo = tipo_max($1.tipo, $3.tipo);
+                    if ($$.tipo) {
+                        strncpy($$.dir, temporal_crear(), 16);
+                        dir1 = tipo_ampliar(code_list, $1.dir, $1.tipo, $$.tipo);
+                        dir2 = tipo_ampliar(code_list, $3.dir, $3.tipo, $$.tipo);
+                        code_push(code_list, "/", dir1, dir2, $$.dir);
+                    } else {
+                        yyerror("Los tipos no son operables");
+                    }
+                }
+                | expresion MOD expresion {
+                    char *dir1, *dir2;
+                    // TODO: Revisar que los tipos a operar son compatibles
+                    $$.tipo = tipo_max($1.tipo, $3.tipo);
+                    if ($$.tipo) {
+                        strncpy($$.dir, temporal_crear(), 16);
+                        dir1 = tipo_ampliar(code_list, $1.dir, $1.tipo, $$.tipo);
+                        dir2 = tipo_ampliar(code_list, $3.dir, $3.tipo, $$.tipo);
+                        code_push(code_list, "mod", dir1, dir2, $$.dir);
+                    } else {
+                        yyerror("Los tipos no son operables");
+                    }
+                }
                 | var_arreglo {}
-                | NUMERO {}
+                | NUMERO {
+                    $$.tipo = $1.tipo;
+                    strncpy($$.dir, $1.sval, 16);
+                }
                 | CCHAR {}
                 | STR {}
-                | ID {}
+                | ID {
+                    struct simbolo *id = ts_buscar_id(ts_actual, $1);
+                    if (id != NULL) {
+                        $$.tipo = id->tipo->id;
+                        strncpy($$.dir, $1, 16);
+                    } else {
+                        yyerror("El id no existe");
+                    }
+                }
                 | ID PI parametros PD {};
 
 parametros      : lista_param
@@ -270,16 +342,16 @@ lista_param     : lista_param COMA expresion
                 | expresion;
 
 condicion       : condicion OR {
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($1.false, etiqueta_crear());
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($1.false, inst);
                 } condicion {
                     code_backpatch(code_list, $1.false, etiqueta_crear());
                     $$.true = combinar($1.true, $4.true);
                     $$.false = $4.false;
                 }
                 | condicion AND {
-                    tmp = code_push(code_list, "label", "", "", "__");
-                    dir_push($1.true, etiqueta_crear());
+                    u16 inst = code_push(code_list, "label", "", "", "__");
+                    dir_push($1.true, inst);
                 } condicion {
                     code_backpatch(code_list, $1.true, etiqueta_crear());
                     $$.false = combinar($1.false, $4.false);
@@ -291,27 +363,35 @@ condicion       : condicion OR {
                 }
                 | PI condicion PD {$$ = $2;}
                 | TRUE {
-                    tmp = code_push("goto", "", "", "__");
+                    u16 inst = code_push(code_list, "goto", "", "", "__");
                     $$.true = list_new();
-                    dir_push($$.true, tmp);
+                    dir_push($$.true, inst);
                 }
                 | FALSE {
-                    tmp = code_push("goto", "", "", "__");
+                    u16 inst = code_push(code_list, "goto", "", "", "__");
                     $$.false = list_new();
-                    dir_push($$.false, tmp);
+                    dir_push($$.false, inst);
                 }
                 | expresion relacional expresion {
-                    char *temp = temporal_nueva();
-                    code_push(code_list, $2, $3.dir, temp);
+                    char *temp = temporal_crear();
+                    code_push(code_list, $2, $1.dir, $3.dir, temp);
+
+                    u16 inst = code_push(code_list, "if", temp, "goto", "__");
+                    $$.true = list_new();
+                    dir_push($$.true, inst);
+
+                    inst = code_push(code_list, "goto", "", "", "__");
+                    $$.false = list_new();
+                    dir_push($$.false, inst);
                 };
 
 
-relacional      : LT {}
-                | LE {}
-                | GT {}
-                | GE {}
-                | EQ {}
-                | NEQ {};
+relacional      : LT  {strncpy($$, "<" , 3);}
+                | LE  {strncpy($$, "<=", 3);}
+                | GT  {strncpy($$, ">" , 3);}
+                | GE  {strncpy($$, ">=", 3);}
+                | EQ  {strncpy($$, "==", 3);}
+                | NEQ {strncpy($$, "!=", 3);};
 %%
 
 void yyerror(char * str) {
@@ -321,23 +401,21 @@ void yyerror(char * str) {
 void init()
 {
     /* Creando el stack de tablas de tipos */
-    tt_stack = stack_crear();
+    tt_stack  = stack_crear();
+    tt_actual = tt_crear_tabla();
     /* Creando el stack de tablas de simbolos */
-    ts_stack = stack_crear();
+    ts_stack  = stack_crear();
+    ts_actual = ts_crear_tabla();
     /* Creando el stack de direcciones */
     dir_stack = list_new();
     /* Creando la lista de codigo */
     code_list = list_new();
 
-    if (!tt_stack || !ts_stack || !dir_stack || !code_list) {
-        printf("Error creando las estructuras de dato\n");
-        exit (-1);
+    if (!tt_stack || !ts_stack || !dir_stack || !code_list || !tt_actual ||
+        !ts_actual) {
+        printf("Error creando las estructuras de datos\n");
+        exit(-1);
     }
-    ambito_crear(tt_stack, &tt_actual, ts_stack, &ts_actual, dir_stack,
-                 &dir_actual);
-    /* tt_global = tt_actual; */
-    /* ts_global = ts_actual; */
-
 
     printf("Estructuras de datos inicializadas\n");
 
@@ -345,7 +423,8 @@ void init()
     stack_imprimir(ts_stack, ts_imprimir_tabla);
 }
 
-void destroy () {
+void destroy()
+{
     stack_eliminar(&tt_stack, tt_eliminar_tabla);
     stack_eliminar(&ts_stack, ts_eliminar_tabla);
     dir_eliminar(&dir_stack);

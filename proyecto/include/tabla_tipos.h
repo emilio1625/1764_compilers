@@ -13,7 +13,6 @@ enum TT {
     TT_INT,
     TT_FLOAT,
     TT_ARRAY,
-    TT_POINTER,
     TT_STRUCT,
 };
 
@@ -79,5 +78,13 @@ void tt_imprimir_tipo(struct tipo *tipo);
  * @tt: la tabla a imprimir
  */
 void tt_imprimir_tabla(struct list_head *tt);
+
+/**
+ * tipo_max - devuelve el tipo mas grande entre dos tipos
+ * @t1: el tipo 1
+ * @t2: el tipo 2
+ * @return: el tipo mas grade de los dos
+ */
+enum TT tipo_max(enum TT t1, enum TT t2);
 
 #endif /* end of include guard: TYPE_TABLE_H */

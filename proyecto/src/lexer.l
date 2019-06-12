@@ -54,8 +54,8 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
 "cierto"    {return TRUE    ;}
 "falso"     {return FALSE   ;}
         /* Caracteres y cadenas */
-\'{ascii}?\' {strncpy(yylval.str32, yytext, 32); return CCHAR;}
-\"{ascii}*\" {strncpy(yylval.str32, yytext, 32); return STR  ;}
+\'{ascii}?\' {strncpy(yylval.str16, yytext, 16); return CCHAR;}
+\"{ascii}*\" {strncpy(yylval.str16, yytext, 16); return STR  ;}
 ":"         {return DP      ;}
 ";"         {return PYC     ;}
 "{"         {return LI      ;}
@@ -63,13 +63,13 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
         /* Numeros */
 {entero} {
     yylval.num.tipo = TT_INT;
-    strncpy(yylval.num.sval, yytext, 32);
+    strncpy(yylval.num.sval, yytext, 16);
     yylval.num.val.i = (int) strtol(yytext, NULL, 0);
     return NUMERO;
 }
 {flotante} {
     yylval.num.tipo = TT_FLOAT;
-    strncpy(yylval.num.sval, yytext, 32);
+    strncpy(yylval.num.sval, yytext, 16);
     yylval.num.val.f = (float) strtod(yytext, NULL);
     return NUMERO;
 }
@@ -98,7 +98,7 @@ ascii [[:graph:]]|[[:space:]]|[[:cntrl:]]
     /* Espacios en blanco */
 [ \t\n]+ {}
     /* Identificadores */
-{id} { strncpy(yylval.str32, yytext, 32); return ID;}
+{id} { strncpy(yylval.str16, yytext, 16); return ID;}
 
 . {printf("Error lexico en la linea %d\n", yylineno); exit(-1);}
 

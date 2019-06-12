@@ -18,7 +18,7 @@ struct simbolo *ts_insertar_simbolo(struct list_head *ts,
         return NULL;
     nuevo->pos =
         list_empty(ts) ? 0 : list_last_entry(ts, struct simbolo, list)->pos + 1;
-    nuevo->id = strndup(id, 32);
+    nuevo->id = strndup(id, 16);
     nuevo->tipo = tipo;
     nuevo->tipo_var = tipo_var;
     nuevo->dir = dir;
@@ -36,7 +36,7 @@ struct simbolo *ts_buscar_id(struct list_head *ts, const char *id)
         return NULL;
     list_for_each_entry(res, ts, list)
     {
-        if (strncmp(id, res->id, 32) == 0) {
+        if (strncmp(id, res->id, 16) == 0) {
             return res;
         }
     }

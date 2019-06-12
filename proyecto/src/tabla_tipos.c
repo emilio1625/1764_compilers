@@ -89,3 +89,9 @@ void tt_imprimir_tabla(struct list_head *tt)
     }
     list_for_each_entry_reverse(tipo, tt, list) { tt_imprimir_tipo(tipo); }
 }
+
+enum TT tipo_max(enum TT t1, enum TT t2) {
+    if (t1 > 3 || t2 > 3)
+        return TT_VOID;
+    return t1 > t2 ? t1 : t2;
+}
