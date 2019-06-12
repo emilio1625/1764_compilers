@@ -79,6 +79,12 @@ void _code_imprimir(struct code *code)
         printf("%04lu\t%s:\n", code->dir, code->res);
     } else if (strncmp(code->op, "goto", 5) == 0) {
         printf("%04lu\t\t%s %s\n", code->dir, code->op, code->res);
+    } else if (strncmp(code->op, "call", 5) == 0) {
+        printf("%04lu\t\t%s = %s %s\n", code->dir, code->res, code->op,
+               code->dir1);
+    } else if ((strncmp(code->op, "return", 7) == 0) ||
+               (strncmp(code->op, "param", 6) == 0)) {
+        printf("%04lu\t\t%s %s\n", code->dir, code->op, code->dir1);
     } else if (strncmp(code->op, "if", 3) == 0) {
         printf("%04lu\t\t%s %s %s %s\n", code->dir, code->op, code->dir1,
                code->dir2, code->res);
@@ -124,7 +130,8 @@ void code_backpatch(struct list_head *head,
     // TODO: arreglar esta cochinada
     list_for_each_entry(dir, dirs, list)
     {
-        list_for_each_entry_continue(code, head, list) {
+        list_for_each_entry_continue(code, head, list)
+        {
             if (code->dir == dir->dir) {
                 strncpy(code->res, label, 16);
             }

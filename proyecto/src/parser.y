@@ -201,7 +201,7 @@ funciones       : FUNCT tipo ID PI {
                     }
                     ambito_restaurar(tt_stack, &tt_actual,
                                      ts_stack, &ts_actual,
-                                     dir_stack, &dir_g, 1);
+                                     dir_stack, &dir_g, 0);
                     /* u16 inst = code_push(code_list, "label", "", "", "__"); */
                     /* dir_push($11.next, inst); */
                     /* code_backpatch(code_list, $11.next, etiqueta_crear()); */
@@ -276,13 +276,19 @@ sentencias      : sentencias {
 sentencia       : IF PI condicion PD {
                     u16 inst = code_push(code_list, "label", "", "", "__");
                     dir_push($3.true, inst);
-                } sentencia ELSE {
+                } sentencia {
+                    u16 inst = code_push(code_list, "goto", "", "", "__");
+                    $<sent>$.next = list_new();
+                    dir_push($<sent>$.next, inst);
+                } ELSE  {
                     u16 inst = code_push(code_list, "label", "", "", "__");
                     dir_push($3.false, inst);
                 } sentencia {
                     code_backpatch(code_list, $3.true, etiqueta_crear());
                     code_backpatch(code_list, $3.false, etiqueta_crear());
-                    $$.next = combinar($6.next, $9.next);
+                    dir_push($10.next, code_push(code_list, "label", "", "", "__"));
+                    $$.next = combinar($10.next, combinar($6.next, $<sent>7.next));
+                    code_backpatch(code_list, $$.next, etiqueta_crear());
                 }
                 | WHILE PI {
                     u16 inst = code_push(code_list, "label", "", "", "__");
@@ -349,6 +355,7 @@ sentencia       : IF PI condicion PD {
                 }
                 | SWITCH PI expresion PD LI casos predeterminado LD {}
                 | BREAK PYC {
+                    $$.next = list_new();
                     salida_ciclo_g = code_push(code_list, "goto", "", "", "__");
                 }
                 | LI sentencias LD {$$ = $2;}
@@ -357,10 +364,26 @@ sentencia       : IF PI condicion PD {
                     code_push(code_list, "=", $3.dir, "", $1.dir);
                     $$.next = list_new();
                 }
-                | RETURN expresion PYC {}
-                | RETURN PYC {}
-                | PRINT expresion PYC {}
-                | expresion PYC {};
+                | RETURN expresion PYC {
+                    $$.tipo = $2.tipo;
+                    char *temp = temporal_crear();
+                    code_push(code_list, "=", $2.dir, "", temp);
+                    code_push(code_list, "return", temp, "", "");
+                    $$.next = list_new();
+                }
+                | RETURN PYC {
+                    $$.tipo = TT_VOID;
+                    code_push(code_list, "return", "", "", "");
+                    $$.next = list_new();
+                }
+                | PRINT expresion PYC {
+                    $$.tipo = TT_VOID;
+                    $$.next = list_new();
+                }
+                | expresion PYC {
+                    $$.tipo = $1.tipo;
+                    $$.next = list_new();
+                };
 
 casos           : CASE NUMERO DP sentencia casos
                 | ;
@@ -508,13 +531,33 @@ expresion       : expresion MAS expresion {
                 | parte_izquierda {
                     $$ = $1;
                 }
-                | ID PI parametros PD {};
+                | ID PI {
+                    struct simbolo *sim = ts_buscar_id(ts_actual, $1);
+                    if (sim != NULL) {
+                        if (sim->tipo_var == TS_FUN) {
+                            $<expr>$.tipo = sim->tipo->id;
+                        } else {
+                            yyerror("el simbolo no es una funcion");
+                        }
+                    } else {
+                        yyerror("no existe el identificador");
+                    }
+                } parametros PD {
+                    char *temp = temporal_crear();
+                    code_push(code_list, "call", $1, "", temp);
+                    $$.tipo = $<expr>3.tipo;
+                    strncpy($$.dir, temp, 16);
+                };
 
 parametros      : lista_param
                 | ;
 
-lista_param     : lista_param COMA expresion
-                | expresion;
+lista_param     : lista_param COMA expresion {
+                    code_push(code_list, "param", $3.dir, "", "");
+                }
+                | expresion {
+                    code_push(code_list, "param", $1.dir, "", "");
+                };
 
 condicion       : condicion OR {
                     u16 inst = code_push(code_list, "label", "", "", "__");
